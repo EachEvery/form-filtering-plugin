@@ -1,6 +1,7 @@
 <?php
 /*
  * Plugin Name: Form Filtering Plugin
+ * Version: 1.0.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -9,10 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Include our updater file
 include_once( plugin_dir_path( __FILE__ ) . '/updater/updater.php');
 
-// $updater = new EE_Updater( __FILE__ ); // instantiate our class
-// $updater->set_username( 'rayman813' ); // set username
-$updater->set_repository( 'form-filtering-plugin' ); // set repo
-$updater->initialize(); // initialize the updater
+
 
 
  Class EE_Form_Filter {
@@ -23,6 +21,11 @@ $updater->initialize(); // initialize the updater
     private $nb_api = null;
 
     public function __construct() {
+        $updater = new EE_Updater( __FILE__ ); // instantiate our class
+$updater->set_username( 'EachEvery' ); // set username
+$updater->set_repository( 'form-filtering-plugin' ); // set repo
+$updater->authorize( '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' ); // set repo
+$updater->initialize(); // initialize the updater
         /**
          * Authentication is setup in bootstrap file
          */
