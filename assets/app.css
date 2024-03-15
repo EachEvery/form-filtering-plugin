@@ -1,0 +1,25 @@
+.ee-ff-error {
+    position: relative;
+}
+.ee-ff-validation {
+    background-color: #c02b0a;
+    color: #fff;
+    padding: 8px 12px;
+    position: absolute;
+    font-size: 12px;
+    top: calc(100% + 5px);
+    pointer-events: none;
+}
+.ee-ff-validation:before {
+    pointer-events: none;
+    position: absolute;
+    top:-5px;
+    left: 5px;
+    content: "";
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 7.5px 10px 7.5px;
+    border-color: transparent transparent #c02b0a transparent;
+}
