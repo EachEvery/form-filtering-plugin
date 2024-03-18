@@ -2,8 +2,8 @@
 
     if($('form').length <= 0) return;
     if($('[type="email"]').length <= 0) return;
-    let formType = $('form').find('.gform-body').length > 0 ? 'gforms' : null;
 
+    let formType = $('form').find('.gform-body').length > 0 ? 'gforms' : null;
     let $emailFields = $('[type="email"]')
     let $textFields = $('[type="text"]')
     let errorMessages;
@@ -17,9 +17,6 @@
         "u"
     ]
 
-    let allowSubmission = true;
-
-    console.log('in app.js');
     let blacklist = ["test.com", "10minutemail.com", "10minutemail.net" ];
     let errorArray = []
 
@@ -29,23 +26,18 @@
         errorMessages = JSON.parse(formFilter.errors)
     }
 
-    const add_error = function(error, el) {
-        
+    const add_error = function(error, el) {        
         if(formType == 'gforms'){
-            console.log(el)
             if(el.parent().find('.ee-ff-validation').length <= 0 && errorArray[el.attr('name')] !== false){
-                allowSubmission = false;
                 el.parent().addClass('ee-ff-error')
                 errorArray[el.attr('name')] = error;
                 el.after(`<div class="ee-ff-validation">${error}</div>`)
             }
         }
     }
+
     const remove_error = function(el) {
-        allowSubmission = true;
-        console.log("REMOVE ERROR");
         if(formType == 'gforms'){
-            console.log( el.parent().find('.ee-ff-validation'))
             if(errorArray[el.attr('name')]) {
                 errorArray[el.attr('name')] = null;
             }
@@ -55,20 +47,16 @@
     }
 
     const test_email = function() {
-        // test@test.com
         let email = $(this).val();
-        if(email == '') return;
-        _checkBlacklist(email)
-        console.log(error)
-        console.log('~~~~~')
-        console.log($(this).attr('name'))   
-        console.log(errorArray[$(this).attr('name')])   
-        console.log('~~~~~')
+        if(email == '') {
+            remove_error($(this))
+            return;
+        }
+        _checkBlacklist(email, $(this))
         remove_error($(this))
         if(error){
             add_error(error, $(this))
         }
-        console.log(errorArray)
     }
     
     const test_name_fields = function(){
@@ -83,11 +71,11 @@
             last = value.toLowerCase();
         }
         
-        if(first == 'first' || last == 'last'){ 
+        if( first == 'first' || last == 'last' ){ 
+            add_error( errorMessages['first-last'], $(this))
+        } else if(first == last) {
             add_error( errorMessages['first-last'], $(this))
         }
-        
-        console.log(errorArray)
     }
 
     const test_first_chars = function(first, el){
@@ -107,35 +95,32 @@
                 add_error( errorMessages['two-char'], el)
             }
         }
-
     }
 
-    const _checkBlacklist = function(email) {
-        console.log(errorMessages)
+    const _checkBlacklist = function(email, el) {
+        if(email == '' && el.attr('aria-required') == 'true'){
+            error = errorMessages['not-email'];
+            return true;
+        }
         if(!email.includes('@')){
             error = errorMessages['not-email'];
             return true;
         }
         let domain = email.split('@')[1].toLowerCase()
         if ( blacklist.includes(domain)) {
-            console.log(domain)
-            console.log('BLACKLIST')
             error = errorMessages['disposable']
-
             return true;
         }
-        console.log(domain)
         error = false
-        console.log('NOT BLACKLIST')
         return false;
-
     }
+
     const can_submit_form = function(e) {
-        console.log('allowSubmission')
-        console.log(allowSubmission)
-        if(allowSubmission == false) {
+        let errors = Object.values(errorArray).filter(el => {
+            return el !== false && el !== null
+        });
+        if(errors.length > 0) {
             window["gf_submitting_"+$(this).data("formid")]=false;
-            console.log(window["gf_submitting_"+$(this).data("formid")])
             return false;
         }
         return true;
@@ -146,8 +131,7 @@
     $emailFields.on('blur', test_email)
     $textFields.on('blur', test_name_fields)
     jQuery(document).on('gform_post_render', function(){
-        // your js here
         $('form').on('submit', can_submit_form)
-    });
+    }); 
 
 })(jQuery);

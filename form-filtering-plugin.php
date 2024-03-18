@@ -7,8 +7,7 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	return;
 }
-// Include our updater file
-include_once( plugin_dir_path( __FILE__ ) . '/updater/updater.php');
+
 
 
 
@@ -19,41 +18,45 @@ include_once( plugin_dir_path( __FILE__ ) . '/updater/updater.php');
     private $personal = null;
     private $competitors = null;
     private $nb_api = null;
+    private $page = 'form-filtering-plugin';
 
     public function __construct() {
+        // Include our updater file
+        include_once( plugin_dir_path( __FILE__ ) . '/updater/updater.php');
         $updater = new EE_Updater( __FILE__ ); // instantiate our class
-$updater->set_username( 'EachEvery' ); // set username
-$updater->set_repository( 'form-filtering-plugin' ); // set repo
-$updater->authorize( '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' ); // set repo
-$updater->initialize(); // initialize the updater
+        $updater->set_username( 'EachEvery' ); // set username
+        $updater->set_repository( 'form-filtering-plugin' ); // set repo
+        $updater->authorize( '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' ); // set repo
+        $updater->initialize(); // initialize the updater
         /**
          * Authentication is setup in bootstrap file
          */
-        require_once __DIR__ . '/vendor/autoload.php';
+        require_once __DIR__ . '/neverbounce/bootstrap.php';
         // require_once __DIR__ . '/.api-key.php';
         if(get_option('ee-neverbounce-api')){
             $this->nb_api = get_option('ee-neverbounce-api');
             \NeverBounce\Auth::setApiKey($this->nb_api);
         }
-        if (empty($this->nb_api)) {
-            // throw new Exception(
-            //     'The API key was not defined before running the '
-            //     . 'examples. Create a `.env` file in the root directory '
-            //     . 'of this package and specify the API_KEY before running '
-            //     . 'the examples.'
-            // );
-        }
+        // if (empty($this->nb_api)) {
+        //     // throw new Exception(
+        //     //     'The API key was not defined before running the '
+        //     //     . 'examples. Create a `.env` file in the root directory '
+        //     //     . 'of this package and specify the API_KEY before running '
+        //     //     . 'the examples.'
+        //     // );
+        // }
 
         // sets default error messages
         $this->defaultErrorMessages = [
             'not-email' => 'An Email Address needs an @',
             'disposable' => 'This is a disposable email address.',
-            'first-last' => 'The First name and/or Last name cannot be "first" or "last"',
+            'first-last' => 'The first name and last name must be different',
             'one-char' => 'A name cannot be just one character',
             'two-char' => 'A name cannot be 2 characters that are the same letter or both vowels',
         ];
         
         $this->personal = get_option('ee-ff-personal-domains');
+        $this->competitors = get_option('ee-ff-competitors-domains');
         //sets defines
         define( 'EE_FILTER_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
@@ -74,6 +77,8 @@ $updater->initialize(); // initialize the updater
         // Gravity Forms validation
         add_filter( 'gform_field_validation', array( &$this, 'form_filter_validation'), 10, 4 );
         add_filter( 'gform_entry_is_spam', array( &$this, 'filter_gform_entry_is_spam_user_agent'), 11, 3 );
+
+        add_filter( 'gform_entry_is_spam', array( &$this,'filter_gform_competitors'), 12, 3 );
     }
  
   
@@ -88,7 +93,7 @@ $updater->initialize(); // initialize the updater
         wp_localize_script('ee-ff', 'formFilter', array(
             'ajax' => admin_url('admin-ajax.php'),
             'list' => $upload_dir['baseurl'] . "/ee-form-filter/black-list.json",
-            'errors' => json_encode(get_option('ee-ff-error'))
+            'errors' => stripslashes(json_encode(get_option('ee-ff-error')))
         ));
     }
 
@@ -134,63 +139,108 @@ $updater->initialize(); // initialize the updater
      * sets up admin page.
      */
     public function ee_form_filter_menu() {
-        add_menu_page( 'Form Filtering', 'Form Filtering', 'manage_options', 'form-filtering-plugin', array(&$this, 'ee_filtering_admin_page'), 'dashicons-forms', 6  );
+        add_menu_page( 'Form Filtering', 'Form Filtering', 'manage_options', $this->page, array(&$this, 'ee_filtering_admin_page'), 'dashicons-forms', 6  );
     }
 
     /**
      * admin page to show competitors list, personal list, and error messages
      */
     public function ee_filtering_admin_page(){
+
+        //Get the active tab from the $_GET param
+        $default_tab = null;
+        $tab = isset($_GET['tab']) ? $_GET['tab'] : $default_tab;
+
         $this->ee_form_filter_save_options();
         $competitors = get_option('ee-ff-competitors-domains') ?: '';
         $personal = get_option('ee-ff-personal-domains') ?: ["gmail.com", "yahoo.com"];
         $error = get_option('ee-ff-error');
         $neverbounce = get_option('ee-neverbounce-api');
         $neverbouncePriceLimit = get_option('ee-neverbounce-price-limit');
-        print_r($neverbounce);
         // $blacklist = $this->get_disposable_emails();
         ?>
         <div class="wrap">
-            <h2>Form Filtering Options</h2>
-            <form action="" method="post">
-                <div style="display: flex; gap: 20px;">
-                    <div>
-                        <h3>Personal Domains</h3>
-                        <div>
-                            <small>Put in the domains you want to filter out one per line.</small>
-                        </div>
-                        <textarea name="ee-ff-personal-domains" id="ee-ff-personal-domains" rows="15" columns="50"><?php echo $this->convert_array_to_textarea_data($personal); ?></textarea>
-                        <h3>Competitors Domains</h3>
-                        <div>
-                            <small>Put in the domains you want to filter out one per line.</small>
-                        </div>
-                        <textarea name="ee-ff-competitors-domains" id="ee-ff-competitors-domains" rows="15" columns="50"><?php echo $this->convert_array_to_textarea_data($competitors); ?></textarea>
+            <!-- Print the page title -->
+            <h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
+            <!-- Here are our tabs -->
+            <nav class="nav-tab-wrapper">
+                <a href="?page=<?php echo $this->page; ?>" class="nav-tab <?php if($tab===null):?>nav-tab-active<?php endif; ?>">Settings</a>
+                <a href="?page=<?php echo $this->page; ?>&tab=error-message" class="nav-tab <?php if($tab==='error-message'):?>nav-tab-active<?php endif; ?>">Error Message</a>
+                <a href="?page=<?php echo $this->page; ?>&tab=neverbounce" class="nav-tab <?php if($tab==='neverbounce'):?>nav-tab-active<?php endif; ?>">Never Bounce</a>
+            </nav>
 
+            <div class="tab-content">
+                <form class="main-form-section" action="" method="post">
+                <?php switch($tab) :
+                    case 'neverbounce': 
+                        ?>
                         <h3>NeverBounce API Key</h3>
                         <input style="width: 100%;" type="password" name="ee-neverbounce-api" id="ee-neverbounce-api" value="<?php echo $neverbounce; ?>" />
+                        <?php
+                        break;
+                    case 'error-message':
+                        ?>
+                        <h2>Form Filtering Options</h2>
+                            <div style="display: flex; gap: 20px;">
+                                <div style="width: 100%">
+                                <h3>Error Messages</h3>
+                                <h4>Not an Email Message</h4>
+                                <div style="display: flex; flex-direction:column; gap: 10px">
+                                    <input style="width: 100%;" type="text" name="ee-error-not-email" id="ee-error-not-email" value="<?php echo $error['not-email']; ?>" />
+                                    <input style="width: 100%;" type="text" name="ee-error-disposable" id="ee-error-disposable" value="<?php echo $error['disposable']; ?>" />
+                                    <input style="width: 100%;" type="text" name="ee-error-first-last" id="ee-error-first-last" value="<?php echo stripslashes(htmlspecialchars($error['first-last'])); ?>" />
+                                    <input style="width: 100%;" type="text" name="ee-error-one-char" id="ee-error-one-char" value="<?php echo htmlspecialchars($error['one-char']); ?>" />
+                                    <input style="width: 100%;" type="text" name="ee-error-two-char" id="ee-error-two-char" value="<?php echo htmlspecialchars($error['two-char']); ?>" />
+                                    
+                                </div>
+                                </div>
+                            </div>
+                        <?php
+                        break;
+                    default:
+                        ?>
+                        <h2>Form Filtering Options</h2>
+                            <div >
+                                <h3>Personal Domains</h3>
+                                <div>
+                                    <small>Put in the domains you want to filter out one per line.</small>
+                                </div>
+                                <textarea name="ee-ff-personal-domains" id="ee-ff-personal-domains" rows="15" columns="50"><?php echo $this->convert_array_to_textarea_data($personal); ?></textarea>
+                                <h3>Competitors Domains</h3>
+                                <div>
+                                    <small>Put in the domains you want to filter out one per line.</small>
+                                </div>
+                                <textarea name="ee-ff-competitors-domains" id="ee-ff-competitors-domains" rows="15" columns="50"><?php echo $this->convert_array_to_textarea_data($competitors); ?></textarea>
+
+                            </div>
+                            <?php
+                        break;
+                    endswitch; ?>
+                    <div class="submit-sticky">
+                        <?php submit_button( 'Save' ); ?>
                     </div>
-                    <div style="width: 100%">
-                    <h3>Error Messages</h3>
-                    <h4>Not an Email Message</h4>
-                    <div style="display: flex; flex-direction:column; gap: 10px">
-                        <input style="width: 100%;" type="text" name="ee-error-not-email" id="ee-error-not-email" value="<?php echo $error['not-email']; ?>" />
-                        <input style="width: 100%;" type="text" name="ee-error-disposable" id="ee-error-disposable" value="<?php echo $error['disposable']; ?>" />
-                        <input style="width: 100%;" type="text" name="ee-error-first-last" id="ee-error-first-last" value="<?php echo htmlspecialchars($error['first-last']); ?>" />
-                        <input style="width: 100%;" type="text" name="ee-error-one-char" id="ee-error-one-char" value="<?php echo htmlspecialchars($error['one-char']); ?>" />
-                        <input style="width: 100%;" type="text" name="ee-error-two-char" id="ee-error-two-char" value="<?php echo htmlspecialchars($error['two-char']); ?>" />
-                        
-                    </div>
-                    </div>
-                </div>
-                <?php submit_button( 'Save' ); ?>
-		        <?php wp_nonce_field( 'ee-filtering-admin-save', 'ee-filtering-admin-save-nonce' ); ?>
-            </form>
+                    <?php wp_nonce_field( 'ee-filtering-admin-save', 'ee-filtering-admin-save-nonce' ); ?>
+                </form>
+            </div>
         </div>
         <style>
+            #wpbody-content {
+                position: relative;
+            }
             textarea {
                 width: 100%;
-                max-width: 500px;
                 min-height: 250px;
+            }
+            .submit-sticky {
+                position: sticky;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                background-color: #f0f0f1;
+                padding: 5px 0;
+            }
+            .main-form-section {
+                margin-bottom: 50px;
             }
         </style>
         <?php
@@ -231,7 +281,6 @@ $updater->initialize(); // initialize the updater
         
         $action       = 'ee-filtering-admin-save';
         $nonce        = 'ee-filtering-admin-save-nonce';
-        print_r($_POST);
         // If the user doesn't have permission to save, then display an error message
         if ( ! $this->ee_user_can_save( $action, $nonce ) ) {
             return;
@@ -283,8 +332,7 @@ $updater->initialize(); // initialize the updater
  */
 public function form_filter_validation( $result, $value, $form, $field ) {
    
-    GFCommon::log_debug( __METHOD__ . '(): $ee-ff-personal-domains => ' . print_r( json_decode(get_option('ee-ff-personal-domains')), true ) );
-    $form = $result['form'];
+    // GFCommon::log_debug( __METHOD__ . '(): $ee-ff-personal-domains => ' . print_r( json_decode(get_option('ee-ff-personal-domains')), true ) );
     
     $field_types_to_check = array(
         'text',
@@ -296,8 +344,8 @@ public function form_filter_validation( $result, $value, $form, $field ) {
 
    
     // foreach ( $form['fields'] as $field ) {
-        GFCommon::log_debug( __METHOD__ . '(): $field => ' . print_r( $field, true ) );
-        GFCommon::log_debug( __METHOD__ . '(): $value => ' . print_r( $value, true ) );
+        // GFCommon::log_debug( __METHOD__ . '(): $field => ' . print_r( $field, true ) );
+        // GFCommon::log_debug( __METHOD__ . '(): $value => ' . print_r( $value, true ) );
         // Skipping fields which are administrative or the wrong type.
         // if ( $field->is_administrative() || ! in_array( $field->get_input_type(), $field_types_to_check ) ) {
         //     break;
@@ -322,59 +370,66 @@ public function form_filter_validation( $result, $value, $form, $field ) {
  
     $response = wp_remote_get( add_query_arg( $args, 'https://www.purgomalum.com/service/containsprofanity' ) );
  
-    GFCommon::log_debug( __METHOD__ . '(): profanity response => ' . print_r( $response, true ) );
+    // GFCommon::log_debug( __METHOD__ . '(): profanity response => ' . print_r( $response, true ) );
     if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {
-        GFCommon::log_debug( __METHOD__ . '(): profanity response => ' . print_r( $response, true ) );
+        // GFCommon::log_debug( __METHOD__ . '(): profanity response => ' . print_r( $response, true ) );
  
         return false;
     }
     // set the form validation to false
-    GFCommon::log_debug( __METHOD__ . '(): profanity ' . wp_remote_retrieve_body( $response ) === 'true' );;
+    // GFCommon::log_debug( __METHOD__ . '(): profanity ' . wp_remote_retrieve_body( $response ) === 'true' );;
     if( wp_remote_retrieve_body( $response ) === 'true' ) {
         $result['is_valid'] = false;
         $result['message'] = 'Profanity is not allowed.';
     }
 }
 if($field->type == 'email'){
-    GFCommon::log_debug( __METHOD__ . '(): $EMAIL => ' . print_r( $value, true ) );
+    // GFCommon::log_debug( __METHOD__ . '(): $EMAIL => ' . print_r( $value, true ) );
     $value = is_array($value) ? $value : array($value);
     // Verify a single email
-        
-
-       
+    $credits = true; 
+    $info = \NeverBounce\Account::info();
+    if($info->credits_info['paid_credits_remaining'] == 0) {
+       $credits = false;
+    }
+    // GFCommon::log_debug( __METHOD__ . '(): $info => ' . $info->credits_info['paid_credits_remaining'] );
+    
     foreach($value as $email) {
-        if(!isset($email) || $email == '' ) return;
+        if(!isset($email) || $email == '' ) continue;
         $emailArray = explode("@", $email);
         if(in_array($emailArray[1], json_decode($this->personal)) ){
             $result['is_valid'] = false;
             $result['message'] = 'Please use a business email.';
             return;
         }
-        $verification = \NeverBounce\Single::check($email, true, true);
-        if($verification->result_integer == 1) {
-            $result['is_valid'] = false;
-            $result['message'] = 'Email address is not valid';
+        if($credits){
+
+            $verification = \NeverBounce\Single::check($email, true, true);
+            if($verification->result_integer == 1) {
+                $result['is_valid'] = false;
+                $result['message'] = 'Email address is not valid';
+            }
+            if($verification->result_integer == 2) {
+                $result['is_valid'] = false;
+                $result['message'] = 'Email is a temporary, disposable email address';
+            }
+            if($verification->result_integer == 4) {
+                $result['is_valid'] = false;
+                $result['message'] = 'The server cannot be reached';
+            }
+            // Get verified email
+            // GFCommon::log_debug( __METHOD__ . '(): Email Verified: ' . $verification->email );
+            // GFCommon::log_debug( __METHOD__ . '(): Numeric Code: ' . $verification->result_integer);
+            // GFCommon::log_debug( __METHOD__ . '(): Text Code: ' . $verification->result);
+            // GFCommon::log_debug( __METHOD__ . '(): Has DNS: ' . (string) $verification->hasFlag('has_dns'));
+            // GFCommon::log_debug( __METHOD__ . '(): Is free mail: ' . (string) $verification->hasFlag('free_email_host'));
+            // GFCommon::log_debug( __METHOD__ . '(): Suggested Correction: ' . $verification->suggested_correction);
+            // GFCommon::log_debug( __METHOD__ . '(): Is unknown: ' . (string) $verification->is('unknown'));
+            // GFCommon::log_debug( __METHOD__ . '(): Isn\'t valid or catchall: ' . (string) $verification->not(['valid', 'catchall']));
+            $credits = ($verification->credits_info->paid_credits_used
+                + $verification->credits_info->free_credits_used);
+            // GFCommon::log_debug( __METHOD__ . '(): Credits used: ' . $credits);
         }
-        if($verification->result_integer == 2) {
-            $result['is_valid'] = false;
-            $result['message'] = 'Email is a temporary, disposable email address';
-        }
-        if($verification->result_integer == 4) {
-            $result['is_valid'] = false;
-            $result['message'] = 'The server cannot be reached';
-        }
-        // Get verified email
-        GFCommon::log_debug( __METHOD__ . '(): Email Verified: ' . $verification->email );
-        GFCommon::log_debug( __METHOD__ . '(): Numeric Code: ' . $verification->result_integer);
-        GFCommon::log_debug( __METHOD__ . '(): Text Code: ' . $verification->result);
-        GFCommon::log_debug( __METHOD__ . '(): Has DNS: ' . (string) $verification->hasFlag('has_dns'));
-        GFCommon::log_debug( __METHOD__ . '(): Is free mail: ' . (string) $verification->hasFlag('free_email_host'));
-        GFCommon::log_debug( __METHOD__ . '(): Suggested Correction: ' . $verification->suggested_correction);
-        GFCommon::log_debug( __METHOD__ . '(): Is unknown: ' . (string) $verification->is('unknown'));
-        GFCommon::log_debug( __METHOD__ . '(): Isn\'t valid or catchall: ' . (string) $verification->not(['valid', 'catchall']));
-        $credits = ($verification->credits_info->paid_credits_used
-            + $verification->credits_info->free_credits_used);
-        GFCommon::log_debug( __METHOD__ . '(): Credits used: ' . $credits);
         
     }
     
@@ -415,8 +470,8 @@ if($field->type == 'email'){
     if ( empty( $user_agent ) ) {
         if ( method_exists( 'GFCommon', 'set_spam_filter' ) ) {
             $reason = 'User-Agent is empty.';
-            GFCommon::set_spam_filter( rgar( $form, 'id' ), 'User-Agent Check', $reason );
-            GFCommon::log_debug( __METHOD__ . '(): ' . $reason );
+            // GFCommon::set_spam_filter( rgar( $form, 'id' ), 'User-Agent Check', $reason );
+            // GFCommon::log_debug( __METHOD__ . '(): ' . $reason );
         }
  
         return true;
@@ -432,8 +487,8 @@ if($field->type == 'email'){
         if ( stripos( $user_agent, $token ) !== false ) {
             if ( method_exists( 'GFCommon', 'set_spam_filter' ) ) {
                 $reason = sprintf( 'User-Agent "%s" contains "%s".', $user_agent, $token );
-                GFCommon::set_spam_filter( rgar( $form, 'id' ), 'User-Agent Check', $reason );
-                GFCommon::log_debug( __METHOD__ . '(): ' . $reason );
+                // GFCommon::set_spam_filter( rgar( $form, 'id' ), 'User-Agent Check', $reason );
+                // GFCommon::log_debug( __METHOD__ . '(): ' . $reason );
             }
  
             return true;
@@ -441,6 +496,26 @@ if($field->type == 'email'){
     }
  
     return false;
+}
+
+public function filter_gform_competitors( $is_spam, $form, $entry ) {
+    if ( $is_spam ) {
+        return $is_spam;
+    }
+    // GFCommon::log_debug( __METHOD__ . '(): ' . print_r($entry) );
+ 
+    foreach($entry as $el) {
+        if(empty($el)) continue;
+        if(str_contains($el, '@')){
+            $emailArray = explode("@", $el);
+            if(in_array($emailArray[1], json_decode($this->competitors)) ){
+                $is_spam = true;
+                break;
+            }
+        }
+    }
+ 
+    return $is_spam;
 }
 
 /**
