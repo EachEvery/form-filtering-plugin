@@ -1,7 +1,7 @@
 <?php
 /*
  * Plugin Name: Form Filtering Plugin
- * Version: 1.1.8
+ * Version: 1.1.9
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
