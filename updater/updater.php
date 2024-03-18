@@ -65,7 +65,7 @@ class EE_Updater {
         if( property_exists( $transient, 'checked') ) { // Check if transient has a checked property
           if( $checked = $transient->checked ) { // Did WordPress check for updates?
             $this->get_repository_info(); // Get the repo info
-            if($this->github_response['tag_name'] && $checked[$this->basename]){
+            if( isset($this->github_response) && isset($checked) ){
               $out_of_date = version_compare( $this->github_response['tag_name'], $checked[$this->basename], 'gt' ); // Check if we're out of date
               if( $out_of_date ) {
                 $new_files = $this->github_response['zipball_url']; // Get the ZIP
