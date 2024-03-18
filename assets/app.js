@@ -4,8 +4,6 @@
     if($('[type="email"]').length <= 0) return;
 
     let formType = $('form').find('.gform-body').length > 0 ? 'gforms' : null;
-    let $emailFields = $('[type="email"]')
-    let $textFields = $('[type="text"]')
     let errorMessages;
     let first = '';
     let last = '';
@@ -63,12 +61,20 @@
         var value = $('#'+$(this).attr('id')).val();
         var label = $("label[for='" + $(this).attr('id') + "']");
         remove_error($(this))
+        if(!label.text().toLowerCase().includes('first') && !label.text().toLowerCase().includes('your name') && !label.text().toLowerCase().includes('last') ) return;
+
         if(label.text().toLowerCase().includes('first') || label.text().toLowerCase().includes('your name')){
             first = value.toLowerCase();
             test_first_chars(first, $(this))
+            if( containsNumber(first) ){
+                add_error( errorMessages['name-number'], $(this))
+            }
         }
         if(label.text().toLowerCase().includes('last')){
             last = value.toLowerCase();
+            if(containsNumber(last) ) {
+                add_error( errorMessages['name-number'], $(this))
+            }
         }
         
         if( first == 'first' || last == 'last' ){ 
@@ -78,20 +84,23 @@
         }
     }
 
+    const containsNumber = function(str) {
+        return /[0-9]/.test(str);
+      }
     const test_first_chars = function(first, el){
+        remove_error(el)
         let chars = first.trim();
         if(chars.indexOf(' ') >= 0) {
-            remove_error($(this))
             return
         }
         if(chars.length > 2) {
-            remove_error($(this))
             return;
         }
         if(chars.length == 1){
             add_error( errorMessages['one-char'], el)
         } else if(chars.length == 2){
-            if(( vowels.includes(chars[0]) && vowels.includes(chars[0]) ) || chars[0] == chars[1] ){
+            if( chars[0].toString() == chars[1].toString() || ( vowels.includes(chars[0]) && vowels.includes(chars[1]) ) ){ 
+                remove_error(el)
                 add_error( errorMessages['two-char'], el)
             }
         }
@@ -121,15 +130,19 @@
         });
         if(errors.length > 0) {
             window["gf_submitting_"+$(this).data("formid")]=false;
+            if($('#ee-submit-notice').length <= 0) {
+                $(this).closest('form').after('<div id="ee-submit-notice" class="ee-ff-validation">Please fix the errors notated above to be able to submit the form.</div>')
+            }
             return false;
         }
+        $('#ee-submit-notice').remove();
         return true;
     }
 
     //events
     $(document).ready(_init)
-    $emailFields.on('blur', test_email)
-    $textFields.on('blur', test_name_fields)
+    $('body').on('blur', '[type="email"]', test_email)
+    $('body').on('blur', '[type="text"]', test_name_fields)
     jQuery(document).on('gform_post_render', function(){
         $('form').on('submit', can_submit_form)
     }); 

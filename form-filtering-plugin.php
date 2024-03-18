@@ -11,10 +11,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  Class EE_Form_Filter {
 
     private $defaultErrorMessages;
-    private $personal = null;
+    private $personal = ["126.com", "163.com", "21cn.com", "alice.it", "aliyun.com", "aol.com", "aol.it", "arnet.com.ar", "att.net", "bell.net", "bellsouth.net", "bk.ru", "blueyonder.co.uk", "bol.com.br", "bt.com", "btinternet.com", "charter.net", "comcast.net", "cox.net", "daum.net", "earthlink.net", "email.com", "email.it", "facebook.com", "fastmail.fm", "fibertel.com.ar", "foxmail.com", "free.fr", "games.com", "globo.com", "globomail.com", "gmail.com", "gmx.com", "gmx.de", "gmx.fr", "gmx.net", "googlemail.com", "hanmail.net", "hotmail.be", "hotmail.ca", "hotmail.co.uk", "hotmail.com", "hotmail.com.ar", "hotmail.com.br", "hotmail.com.mx", "hotmail.de", "hotmail.es", "hotmail.fr", "hotmail.it", "hush.com", "hushmail.com", "icloud.com", "ig.com.br", "iname.com", "inbox.com", "inbox.ru", "juno.com", "keemail.me", "laposte.net", "lavabit.com", "libero.it", "list.ru", "live.be", "live.co.uk", "live.com", "live.com.ar", "live.com.mx", "live.de", "live.fr", "live.it", "love.com", "mac.com", "mail.com", "mail.ru", "me.com", "msn.com", "nate.com", "naver.com", "neuf.fr", "ntlworld.com", "oi.com.br", "online.de", "orange.fr", "orange.net", "outlook.com", "outlook.com.br", "pobox.com", "poste.it", "prodigy.net.mx", "protonmail.ch", "protonmail.com", "qq.com", "r7.com", "rambler.ru", "rocketmail.com", "rogers.com", "safe-mail.net", "sbcglobal.net", "sfr.fr", "shaw.ca", "sina.cn", "sina.com", "sky.com", "skynet.be", "speedy.com.ar", "sympatico.ca", "t-online.de", "talktalk.co.uk", "telenet.be", "teletu.it", "terra.com.br", "tin.it", "tiscali.co.uk", "tiscali.it", "tuta.io", "tutamail.com", "tutanota.com", "tutanota.de", "tvcablenet.be", "uol.com.br", "verizon.net", "virgilio.it", "virgin.net", "virginmedia.com", "voo.be", "wanadoo.fr", "web.de", "wow.com", "ya.ru", "yahoo.ca", "yahoo.co.id", "yahoo.co.in", "yahoo.co.jp", "yahoo.co.kr", "yahoo.co.uk", "yahoo.com", "yahoo.com.ar", "yahoo.com.br", "yahoo.com.mx", "yahoo.com.ph", "yahoo.com.sg", "yahoo.de", "yahoo.fr", "yahoo.it", "yandex.by", "yandex.com", "yandex.com", "yandex.kz", "yandex.ru", "yandex.ua", "yeah.net", "ygm.com", "ymail.com", "zipmail.com.br", "zoho.com"];
     private $competitors = null;
+    private $nbResults = [];
     private $nb_api = null;
     private $page = 'form-filtering-plugin';
+    private $useNB = false;
 
     public function __construct() {
         //sets defines
@@ -35,19 +37,57 @@ if ( ! defined( 'ABSPATH' ) ) {
         if(get_option('ee-neverbounce-api')){
             $this->nb_api = get_option('ee-neverbounce-api');
             \NeverBounce\Auth::setApiKey($this->nb_api);
+            $this->useNB = true;
+            try {
+                $info = \NeverBounce\Account::info();
+            } catch (\NeverBounce\Errors\AuthException $e) {
+                // The API credentials used are bad, have you reset them recently?
+                GFCommon::log_debug( __METHOD__ . '(): AuthException  '. print_r($e, true));
+                $this->useNB = false;
+            } catch (\NeverBounce\Errors\BadReferrerException $e) {
+                // The script is being used from an unauthorized source, you may need to
+                // adjust your app's settings to allow it to be used from here
+                GFCommon::log_debug( __METHOD__ . '(): BadReferrerException  '. print_r($e, true));
+                $this->useNB = false;
+            } catch (\NeverBounce\Errors\ThrottleException $e) {
+                // Too many requests in a short amount of time, try again shortly or adjust
+                // your rate limit settings for this application in the dashboard
+                GFCommon::log_debug( __METHOD__ . '(): ThrottleException  '. print_r($e, true));
+                $this->useNB = false;
+            } catch (\NeverBounce\Errors\HttpClientException $e) {
+                // An error occurred processing the request, something may be wrong with
+                // the Curl PHP extension or your network
+                GFCommon::log_debug( __METHOD__ . '(): HttpClientException  '. print_r($e, true));
+                $this->useNB = false;
+            } catch (\NeverBounce\Errors\GeneralException $e) {
+                // A non recoverable API error occurred check the message for details
+                GFCommon::log_debug( __METHOD__ . '(): GeneralException  '. print_r($e, true));
+                $this->useNB = false;
+            } catch (Exception $e) {
+                // An error occurred unrelated to the API
+                GFCommon::log_debug( __METHOD__ . '(): unrelated to api  '. print_r($e, true));
+                $this->useNB = false;
+            }
+            
+            
         }
+
+        $this->personal = get_option('ee-ff-personal-domains') ? get_option('ee-ff-personal-domains')  :  $this->personal;
+        
+        $this->competitors = $this->competitors == null ? get_option('ee-ff-competitors-domains') : false;
+        $this->nbResults = $this->nbResults == null  ? get_option('ee-ff-nb-results') : false;
 
         // sets default error messages
         $this->defaultErrorMessages = [
             'not-email' => 'An Email Address needs an @',
             'disposable' => 'This is a disposable email address.',
             'first-last' => 'The first name and last name must be different',
+            'name-number' => 'A name cannot contain a number',
             'one-char' => 'A name cannot be just one character',
             'two-char' => 'A name cannot be 2 characters that are the same letter or both vowels',
         ];
         
-        $this->personal = get_option('ee-ff-personal-domains');
-        $this->competitors = get_option('ee-ff-competitors-domains');
+        
         
 
         // activation hook
@@ -91,6 +131,9 @@ if ( ! defined( 'ABSPATH' ) ) {
         // Set default error message array
         if(get_option('ee-ff-error') == null){
             update_option('ee-ff-error', $this->defaultErrorMessages);
+        }
+        if(get_option('ee-ff-personal-domains') == null){
+            update_option('ee-ff-personal-domains', $this->personal);
         }
         // Schedule Cron
 		if ( ! wp_next_scheduled( 'ee_get_list' ) ) {
@@ -142,7 +185,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
         $this->ee_form_filter_save_options();
         $competitors = get_option('ee-ff-competitors-domains') ?: '';
-        $personal = get_option('ee-ff-personal-domains') ?: ["gmail.com", "yahoo.com"];
+        $nbResults = get_option('ee-ff-nb-results') ?: '';
+        // from https://help.gong.io/hc/en-us/articles/13363982628749-Public-email-domains-exclusion-list
+        $personal = get_option('ee-ff-personal-domains') ?: '';
         $error = get_option('ee-ff-error');
         $neverbounce = get_option('ee-neverbounce-api');
         $neverbouncePriceLimit = get_option('ee-neverbounce-price-limit');
@@ -165,6 +210,8 @@ if ( ! defined( 'ABSPATH' ) ) {
                         ?>
                         <h3>NeverBounce API Key</h3>
                         <input style="width: 100%;" type="password" name="ee-neverbounce-api" id="ee-neverbounce-api" value="<?php echo $neverbounce; ?>" />
+                        <h3>Never Bounce Blocks</h3>
+                        <textarea name="ee-ff-nb-results" id="ee-ff-nb-results" rows="15" columns="50"><?php echo $this->convert_array_to_textarea_data($nbResults); ?></textarea>
                         <?php
                         break;
                     case 'error-message':
@@ -173,13 +220,19 @@ if ( ! defined( 'ABSPATH' ) ) {
                             <div style="display: flex; gap: 20px;">
                                 <div style="width: 100%">
                                 <h3>Error Messages</h3>
-                                <h4>Not an Email Message</h4>
                                 <div style="display: flex; flex-direction:column; gap: 10px">
-                                    <input style="width: 100%;" type="text" name="ee-error-not-email" id="ee-error-not-email" value="<?php echo $error['not-email']; ?>" />
-                                    <input style="width: 100%;" type="text" name="ee-error-disposable" id="ee-error-disposable" value="<?php echo $error['disposable']; ?>" />
-                                    <input style="width: 100%;" type="text" name="ee-error-first-last" id="ee-error-first-last" value="<?php echo stripslashes(htmlspecialchars($error['first-last'])); ?>" />
-                                    <input style="width: 100%;" type="text" name="ee-error-one-char" id="ee-error-one-char" value="<?php echo htmlspecialchars($error['one-char']); ?>" />
-                                    <input style="width: 100%;" type="text" name="ee-error-two-char" id="ee-error-two-char" value="<?php echo htmlspecialchars($error['two-char']); ?>" />
+                                    <h4>Not an Email Message</h4>
+                                    <input required style="width: 100%;" type="text" name="ee-error-not-email" id="ee-error-not-email" value="<?php echo $error['not-email']; ?>" />
+                                    <h4>Disposable Email Message</h4>
+                                    <input required style="width: 100%;" type="text" name="ee-error-disposable" id="ee-error-disposable" value="<?php echo $error['disposable']; ?>" />
+                                    <h4>First and Last names are the same Message</h4>
+                                    <input required style="width: 100%;" type="text" name="ee-error-first-last" id="ee-error-first-last" value="<?php echo stripslashes(htmlspecialchars($error['first-last'])); ?>" />
+                                    <h4>Names containing numbers Message</h4>
+                                    <input required style="width: 100%;" type="text" name="ee-error-name-number" id="ee-error-name-number" value="<?php echo stripslashes(htmlspecialchars($error['name-number'])); ?>" />
+                                    <h4>One Character Message</h4>
+                                    <input required style="width: 100%;" type="text" name="ee-error-one-char" id="ee-error-one-char" value="<?php echo htmlspecialchars($error['one-char']); ?>" />
+                                    <h4>Two Character Message</h4>
+                                    <input required style="width: 100%;" type="text" name="ee-error-two-char" id="ee-error-two-char" value="<?php echo htmlspecialchars($error['two-char']); ?>" />
                                     
                                 </div>
                                 </div>
@@ -276,31 +329,28 @@ if ( ! defined( 'ABSPATH' ) ) {
         }
         if ( isset( $_POST['ee-ff-personal-domains'] ) ) {
             $text = sanitize_textarea_field($_POST['ee-ff-personal-domains']);
-            $domains = explode("\r\n", $text);
+            $domains = preg_split('/\r\n|[\r\n]/', $text);
             update_option('ee-ff-personal-domains', json_encode($domains));
-		} else {
-            delete_option( 'ee-ff-personal-domains' );
-		}
+		} 
+        if ( isset( $_POST['ee-ff-nb-results'] ) ) {
+            $text = sanitize_textarea_field($_POST['ee-ff-nb-results']);
+            $domains = preg_split('/\r\n|[\r\n]/', $text);
+            update_option('ee-ff-nb-results', json_encode($domains));
+		} 
 
         if ( isset( $_POST['ee-ff-competitors-domains'] ) ) {
             $text = sanitize_textarea_field($_POST['ee-ff-competitors-domains']);
-            $domains = explode("\r\n", $text);
+            $domains = preg_split('/\r\n|[\r\n]/', $text);
             update_option('ee-ff-competitors-domains', json_encode($domains));
-		} else {
-            delete_option( 'ee-ff-competitors-domains' );
 		}
         if ( isset( $_POST['ee-neverbounce-api'] ) ) {
             $text = sanitize_text_field($_POST['ee-neverbounce-api']);
             update_option('ee-neverbounce-api', $text);
-		} else {
-            delete_option( 'ee-neverbounce-api' );
 		}
         if ( isset( $_POST['ee-neverbounce-price-limit'] ) ) {
             $text = sanitize_text_field($_POST['ee-neverbounce-price-limit']);
             update_option('ee-neverbounce-price-limit', $text);
-		} else {
-            delete_option( 'ee-neverbounce-price-limit' );
-		}
+		} 
       
         $this->defaultErrorMessages = get_option('ee-ff-error');
         
@@ -317,11 +367,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * add nb emails to a list to prevent them from running the same email again
+ */
+public function nb_filteredList($email) {
+    if($this->nbResults == false) {
+        $this->nbResults = [];
+    }
+    GFCommon::log_debug( __METHOD__ . '(): $info => ' . print_r($this->nbResults) );
+    $this->nbResults[] = $email;
+    update_option('ee-ff-nb-results', json_encode($this->nbResults));
+}
+
+/**
  * 
  */
 public function form_filter_validation( $result, $value, $form, $field ) {
-   
-    // GFCommon::log_debug( __METHOD__ . '(): $ee-ff-personal-domains => ' . print_r( json_decode(get_option('ee-ff-personal-domains')), true ) );
+    
+    
     
     $field_types_to_check = array(
         'text',
@@ -376,48 +438,67 @@ if($field->type == 'email'){
     // GFCommon::log_debug( __METHOD__ . '(): $EMAIL => ' . print_r( $value, true ) );
     $value = is_array($value) ? $value : array($value);
     // Verify a single email
-    $credits = true; 
-    $info = \NeverBounce\Account::info();
-    if($info->credits_info['paid_credits_remaining'] == 0) {
-       $credits = false;
+    $credits = false; 
+    if($this->useNB){
+        $info = \NeverBounce\Account::info();
+        if($info->credits_info['paid_credits_remaining'] > 0) {
+           $credits = true;
+        }
     }
     // GFCommon::log_debug( __METHOD__ . '(): $info => ' . $info->credits_info['paid_credits_remaining'] );
     
     foreach($value as $email) {
         if(!isset($email) || $email == '' ) continue;
+        $email = trim($email);
         $emailArray = explode("@", $email);
-        if(in_array($emailArray[1], json_decode($this->personal)) ){
-            $result['is_valid'] = false;
-            $result['message'] = 'Please use a business email.';
-            return;
+        if($this->personal !== null && $this->personal !== false){
+            if($this->isJson($this->personal)) {
+                $this->personal = json_decode($this->personal);
+            }
+            if(in_array($emailArray[1], $this->personal) ){
+                $result['is_valid'] = false;
+                $result['message'] = 'Please use a business email.';
+            }
         }
-        if($credits){
+        if($credits && $this->useNB && $result['is_valid'] !== false){
+            if($this->isJson($this->nbResults)) {
+                $this->nbResults = json_decode($this->nbResults);
+            }
+            if(is_array($this->nbResults) && in_array($email, $this->nbResults)){
+                $result['is_valid'] = false;
+                $result['message'] = 'This is not a valid email address.';
+            } 
+            else {
 
-            $verification = \NeverBounce\Single::check($email, true, true);
-            if($verification->result_integer == 1) {
-                $result['is_valid'] = false;
-                $result['message'] = 'Email address is not valid';
+                $verification = \NeverBounce\Single::check($email, true, true);
+                if($verification->result_integer == 1) {
+                    $result['is_valid'] = false;
+                    $result['message'] = 'Email address is not valid';
+                    $this->nb_filteredList($email); 
+                }
+                if($verification->result_integer == 2) {
+                    $result['is_valid'] = false;
+                    $result['message'] = 'Email is a temporary, disposable email address';
+                    $this->nb_filteredList($email); 
+                }
+                if($verification->result_integer == 4) {
+                    $result['is_valid'] = false;
+                    $result['message'] = 'The server cannot be reached';
+                    $this->nb_filteredList($email); 
+                }
+                // Get verified email
+                // GFCommon::log_debug( __METHOD__ . '(): Email Verified: ' . $verification->email );
+                // GFCommon::log_debug( __METHOD__ . '(): Numeric Code: ' . $verification->result_integer);
+                // GFCommon::log_debug( __METHOD__ . '(): Text Code: ' . $verification->result);
+                // GFCommon::log_debug( __METHOD__ . '(): Has DNS: ' . (string) $verification->hasFlag('has_dns'));
+                // GFCommon::log_debug( __METHOD__ . '(): Is free mail: ' . (string) $verification->hasFlag('free_email_host'));
+                // GFCommon::log_debug( __METHOD__ . '(): Suggested Correction: ' . $verification->suggested_correction);
+                // GFCommon::log_debug( __METHOD__ . '(): Is unknown: ' . (string) $verification->is('unknown'));
+                // GFCommon::log_debug( __METHOD__ . '(): Isn\'t valid or catchall: ' . (string) $verification->not(['valid', 'catchall']));
+                $credits = ($verification->credits_info->paid_credits_used
+                    + $verification->credits_info->free_credits_used);
+                GFCommon::log_debug( __METHOD__ . '(): Credits used: ' . $credits);
             }
-            if($verification->result_integer == 2) {
-                $result['is_valid'] = false;
-                $result['message'] = 'Email is a temporary, disposable email address';
-            }
-            if($verification->result_integer == 4) {
-                $result['is_valid'] = false;
-                $result['message'] = 'The server cannot be reached';
-            }
-            // Get verified email
-            // GFCommon::log_debug( __METHOD__ . '(): Email Verified: ' . $verification->email );
-            // GFCommon::log_debug( __METHOD__ . '(): Numeric Code: ' . $verification->result_integer);
-            // GFCommon::log_debug( __METHOD__ . '(): Text Code: ' . $verification->result);
-            // GFCommon::log_debug( __METHOD__ . '(): Has DNS: ' . (string) $verification->hasFlag('has_dns'));
-            // GFCommon::log_debug( __METHOD__ . '(): Is free mail: ' . (string) $verification->hasFlag('free_email_host'));
-            // GFCommon::log_debug( __METHOD__ . '(): Suggested Correction: ' . $verification->suggested_correction);
-            // GFCommon::log_debug( __METHOD__ . '(): Is unknown: ' . (string) $verification->is('unknown'));
-            // GFCommon::log_debug( __METHOD__ . '(): Isn\'t valid or catchall: ' . (string) $verification->not(['valid', 'catchall']));
-            $credits = ($verification->credits_info->paid_credits_used
-                + $verification->credits_info->free_credits_used);
-            // GFCommon::log_debug( __METHOD__ . '(): Credits used: ' . $credits);
         }
         
     }
@@ -495,11 +576,16 @@ public function filter_gform_competitors( $is_spam, $form, $entry ) {
  
     foreach($entry as $el) {
         if(empty($el)) continue;
-        if(str_contains($el, '@')){
-            $emailArray = explode("@", $el);
-            if(in_array($emailArray[1], json_decode($this->competitors)) ){
-                $is_spam = true;
-                break;
+        if($this->competitors !== null && $this->competitors !== false){
+            if($this->isJson($this->competitors)) {
+                $this->competitors = json_decode($this->competitors);
+            }
+            if(str_contains($el, '@')){
+                $emailArray = explode("@", $el);
+                if(in_array($emailArray[1], $this->competitors) ){
+                    $is_spam = true;
+                    break;
+                }
             }
         }
     }
