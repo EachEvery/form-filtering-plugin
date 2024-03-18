@@ -1,16 +1,12 @@
 <?php
 /*
  * Plugin Name: Form Filtering Plugin
- * Version: 1.1.1
+ * Version: 1.1.8
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	return;
 }
-
-
-
-
 
  Class EE_Form_Filter {
 
@@ -21,30 +17,25 @@ if ( ! defined( 'ABSPATH' ) ) {
     private $page = 'form-filtering-plugin';
 
     public function __construct() {
+        //sets defines
+        define( 'EE_FILTER_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+
         // Include our updater file
         include_once( plugin_dir_path( __FILE__ ) . '/updater/updater.php');
         $updater = new EE_Updater( __FILE__ ); // instantiate our class
         $updater->set_username( 'EachEvery' ); // set username
         $updater->set_repository( 'form-filtering-plugin' ); // set repo
-        $updater->authorize( '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' ); // set repo
         $updater->initialize(); // initialize the updater
+
         /**
          * Authentication is setup in bootstrap file
          */
         require_once __DIR__ . '/neverbounce/bootstrap.php';
-        // require_once __DIR__ . '/.api-key.php';
+
         if(get_option('ee-neverbounce-api')){
             $this->nb_api = get_option('ee-neverbounce-api');
             \NeverBounce\Auth::setApiKey($this->nb_api);
         }
-        // if (empty($this->nb_api)) {
-        //     // throw new Exception(
-        //     //     'The API key was not defined before running the '
-        //     //     . 'examples. Create a `.env` file in the root directory '
-        //     //     . 'of this package and specify the API_KEY before running '
-        //     //     . 'the examples.'
-        //     // );
-        // }
 
         // sets default error messages
         $this->defaultErrorMessages = [
@@ -57,15 +48,14 @@ if ( ! defined( 'ABSPATH' ) ) {
         
         $this->personal = get_option('ee-ff-personal-domains');
         $this->competitors = get_option('ee-ff-competitors-domains');
-        //sets defines
-        define( 'EE_FILTER_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+        
 
         // activation hook
 		register_activation_hook( __FILE__, array( &$this, 'set_cron' ) );
 		// deactivation hook
 		// register_deactivation_hook( __FILE__, array( &$this, 'deactivation_hook' ) );
         // Cron to get list.
-        // add_action( 'ee_get_list',  array( &$this, 'get_disposable_emails') );
+        add_action( 'ee_get_list',  array( &$this, 'get_disposable_emails') );
 
         
         //creates menu page
@@ -99,14 +89,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 
     public function set_cron() {
         // Set default error message array
-        // add_option( 'ee-ff-error', 'Plugin-Slug' );
         if(get_option('ee-ff-error') == null){
             update_option('ee-ff-error', $this->defaultErrorMessages);
         }
         // Schedule Cron
-		// if ( ! wp_next_scheduled( 'ee_get_list' ) ) {
-        //     wp_schedule_event( time(), 'daily', 'ee_get_list' );
-        // }
+		if ( ! wp_next_scheduled( 'ee_get_list' ) ) {
+            wp_schedule_event( time(), 'daily', 'ee_get_list' );
+        }
     }
    
 
