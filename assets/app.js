@@ -27,9 +27,9 @@
 
     const add_error = function(error, el) {        
         if(formType == 'gforms'){
-            if(el.parent().find('.ee-ff-validation').length <= 0 && errorArray[el.attr('name')] !== false){
+            if(el.parent().find('.ee-ff-validation').length <= 0 && errorArray[el.attr('id')] !== false){
                 el.parent().addClass('ee-ff-error')
-                errorArray[el.attr('name')] = error;
+                errorArray[el.attr('id')] = error;
                 el.after(`<div class="ee-ff-validation">${error}</div>`)
             }
         }
@@ -37,8 +37,8 @@
 
     const remove_error = function(el) {
         if(formType == 'gforms'){
-            if(errorArray[el.attr('name')]) {
-                errorArray[el.attr('name')] = null;
+            if(errorArray[el.attr('id')]) {
+                errorArray[el.attr('id')] = null;
             }
             el.parent().removeClass('ee-ff-error')
             el.parent().find('.ee-ff-validation').remove();
@@ -74,35 +74,28 @@
         if(first == last) {
             add_error( errorMessages['first-last'], $(this))
         }  else {
-            let removeBoth = []
-            nameArray.forEach(function(el){
-                if(errorArray[el] == null){
-                    removeBoth.push(true)
-                }
-            })
-            console.log(errorArray)
             let text = Object.entries(errorArray).filter( function([key, value]){
-                console.log("errorArray[index]")
-                console.log(value)
                 return value == errorMessages['first-last'];
-                
             });
-            console.log("text.length")
-            console.log(text.length)
-            console.log("nameArray.length")
-            console.log(nameArray)
-            console.log(nameArray.length)
             if(text.length != 0){
-                
+                let _this = $(this)
                 nameArray.forEach(function(el){
-                    let $set = $(`[name="${el}"]`);
-                    remove_error($set)
+                    let id = _this.attr('id').split('_');
+                    console.log(id)
+                    let starts = id[0]+'_'+id[1]
+                    console.log(starts)
+                    console.log(el)
+                    console.log(nameArray)
+                    if(el.startsWith(starts)){
+                        let $set = $(`#${el}`);
+                        remove_error($set)
+                    }
                 })
             }
         }
 
         if(label.text().toLowerCase().includes('first') || label.text().toLowerCase().includes('your name')){
-            nameArray.indexOf($(this).attr('name')) === -1 ? nameArray.push($(this).attr('name')) : '';
+            nameArray.indexOf($(this).attr('id')) === -1 ? nameArray.push($(this).attr('id')) : '';
             test_first_chars(first, $(this))
             if( containsNumber(first) ){
                 add_error( errorMessages['name-number'], $(this))
@@ -112,7 +105,7 @@
             }
         }
         if(label.text().toLowerCase().includes('last')){
-            nameArray.indexOf($(this).attr('name')) === -1 ? nameArray.push($(this).attr('name')) : '';
+            nameArray.indexOf($(this).attr('id')) === -1 ? nameArray.push($(this).attr('id')) : '';
             if(containsNumber(last) ) {
                 add_error( errorMessages['name-number'], $(this))
             }
@@ -131,7 +124,6 @@
         return /[0-9]/.test(str);
       }
     const test_first_chars = function(first, el){
-        console.log(first)
         let chars = first.trim();
         if(chars.indexOf(' ') >= 0) {
             return
@@ -140,7 +132,6 @@
             return;
         }
         if(chars.length == 1){
-            console.log('ifboaiebfoa')
             add_error( errorMessages['one-char'], el)
         } else if(chars.length == 2){
             if( chars[0].toString() == chars[1].toString() || ( vowels.includes(chars[0]) && vowels.includes(chars[1]) ) ){ 
@@ -174,12 +165,12 @@
         });
         if(errors.length > 0) {
             window["gf_submitting_"+$(this).data("formid")]=false;
-            if($('#ee-submit-notice').length <= 0) {
-                $(this).closest('form').after('<div id="ee-submit-notice" class="ee-ff-validation">Please fix the errors notated above to be able to submit the form.</div>')
+            if($("form[data-formid='"+$(this).data("formid")+"']").parent().find('.ee-submit-notice').length <= 0) {
+                $(this).closest('form').after('<div class="ee-submit-notice ee-ff-validation">Please fix the errors notated above to be able to submit the form.</div>')
             }
             return false;
         }
-        $('#ee-submit-notice').remove();
+        $("form[data-formid='"+$(this).data("formid")+"']").parent().find('.ee-submit-notice').remove();
         return true;
     }
 
