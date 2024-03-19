@@ -7,6 +7,7 @@
     let errorMessages;
     let first = '';
     let last = '';
+    let nameArray = [];
     let vowels = [
         "a",
         "e",
@@ -65,30 +66,72 @@
 
         if(label.text().toLowerCase().includes('first') || label.text().toLowerCase().includes('your name')){
             first = value.toLowerCase();
+        }
+        if(label.text().toLowerCase().includes('last')){
+            last = value.toLowerCase();
+        }
+
+        if(first == last) {
+            add_error( errorMessages['first-last'], $(this))
+        }  else {
+            let removeBoth = []
+            nameArray.forEach(function(el){
+                if(errorArray[el] == null){
+                    removeBoth.push(true)
+                }
+            })
+            console.log(errorArray)
+            let text = Object.entries(errorArray).filter( function([key, value]){
+                console.log("errorArray[index]")
+                console.log(value)
+                return value == errorMessages['first-last'];
+                
+            });
+            console.log("text.length")
+            console.log(text.length)
+            console.log("nameArray.length")
+            console.log(nameArray)
+            console.log(nameArray.length)
+            if(text.length != 0){
+                
+                nameArray.forEach(function(el){
+                    let $set = $(`[name="${el}"]`);
+                    remove_error($set)
+                })
+            }
+        }
+
+        if(label.text().toLowerCase().includes('first') || label.text().toLowerCase().includes('your name')){
+            nameArray.indexOf($(this).attr('name')) === -1 ? nameArray.push($(this).attr('name')) : '';
             test_first_chars(first, $(this))
             if( containsNumber(first) ){
                 add_error( errorMessages['name-number'], $(this))
             }
+            if( first == 'first' ){ 
+                add_error( errorMessages['first-last'], $(this))
+            }
         }
         if(label.text().toLowerCase().includes('last')){
-            last = value.toLowerCase();
+            nameArray.indexOf($(this).attr('name')) === -1 ? nameArray.push($(this).attr('name')) : '';
             if(containsNumber(last) ) {
                 add_error( errorMessages['name-number'], $(this))
             }
+            if( last == 'last' ){ 
+                add_error( errorMessages['first-last'], $(this))
+            } 
         }
         
-        if( first == 'first' || last == 'last' ){ 
-            add_error( errorMessages['first-last'], $(this))
-        } else if(first == last) {
-            add_error( errorMessages['first-last'], $(this))
-        }
+        
+       
+        
+       
     }
 
     const containsNumber = function(str) {
         return /[0-9]/.test(str);
       }
     const test_first_chars = function(first, el){
-        remove_error(el)
+        console.log(first)
         let chars = first.trim();
         if(chars.indexOf(' ') >= 0) {
             return
@@ -97,6 +140,7 @@
             return;
         }
         if(chars.length == 1){
+            console.log('ifboaiebfoa')
             add_error( errorMessages['one-char'], el)
         } else if(chars.length == 2){
             if( chars[0].toString() == chars[1].toString() || ( vowels.includes(chars[0]) && vowels.includes(chars[1]) ) ){ 
