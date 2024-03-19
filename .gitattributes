@@ -5,3 +5,8 @@
 .appveyor.yml   export-ignore
 gulp.js   export-ignore
 gulpfile.js   export-ignore
+.DS_Store export-ignore
+*.tar.gz export-ignore
+*.zip export-ignore
+*.exe export-ignore
+*.dmg export-ignore
