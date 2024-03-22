@@ -84,11 +84,15 @@ if ( ! defined( 'ABSPATH' ) ) {
         // sets default error messages
         $this->defaultErrorMessages = [
             'not-email' => 'An Email Address needs an @',
-            'disposable' => 'This is a disposable email address.',
+            'disposable' => 'This is a disposable email address',
             'first-last' => 'The first name and last name must be different',
             'name-number' => 'A name cannot contain a number',
             'one-char' => 'A name cannot be just one character',
             'two-char' => 'A name cannot be 2 characters that are the same letter or both vowels',
+            'profanity' => 'Profanity is not allowed',
+            'personal' => 'Please use a business email.',
+            'invalid' => 'This is not a valid email address',
+            'server' => 'The server cannot be reached'
         ];
 
         // activation hook
@@ -200,6 +204,7 @@ if ( ! defined( 'ABSPATH' ) ) {
                 <a href="?page=<?php echo $this->page; ?>" class="nav-tab <?php if($tab===null):?>nav-tab-active<?php endif; ?>">Settings</a>
                 <a href="?page=<?php echo $this->page; ?>&tab=error-message" class="nav-tab <?php if($tab==='error-message'):?>nav-tab-active<?php endif; ?>">Error Message</a>
                 <a href="?page=<?php echo $this->page; ?>&tab=neverbounce" class="nav-tab <?php if($tab==='neverbounce'):?>nav-tab-active<?php endif; ?>">NeverBounce</a>
+                <!-- <a href="?page=<?php echo $this->page; ?>&tab=ee-updater" class="nav-tab <?php if($tab==='ee-updater'):?>nav-tab-active<?php endif; ?>">Each+Every Updater</a> -->
             </nav>
 
             <div class="tab-content">
@@ -221,6 +226,58 @@ if ( ! defined( 'ABSPATH' ) ) {
                                 <h3>Error Messages</h3>
                                 <div style="display: flex; flex-direction:column; gap: 10px">
                                     <h4>Not an Email Message</h4>
+                                    <small>This error shows if the user doesn't add in an email address(If it doesn't have an @ symbol)</small>
+                                    <input required style="width: 100%;" type="text" name="ee-error-not-email" id="ee-error-not-email" value="<?php echo $error['not-email']; ?>" />
+                                    <hr/>
+                                    <h4>Disposable Email Message</h4>
+                                    <small>This error shows if a user is using a temporary or disposable email address</small>
+                                    <input required style="width: 100%;" type="text" name="ee-error-disposable" id="ee-error-disposable" value="<?php echo $error['disposable']; ?>" />
+                                    <hr/>
+                                    <h4>First and Last names are the same Message</h4>
+                                    <small>This error shows if the user has the first name and last name as the same name or as "first" and "last"</small>
+                                    <input required style="width: 100%;" type="text" name="ee-error-first-last" id="ee-error-first-last" value="<?php echo stripslashes(htmlspecialchars($error['first-last'])); ?>" />
+                                    <hr/>
+                                    <h4>Names containing numbers Message</h4>
+                                    <small>This error shows if the name has a number in it</small>
+                                    <input required style="width: 100%;" type="text" name="ee-error-name-number" id="ee-error-name-number" value="<?php echo stripslashes(htmlspecialchars($error['name-number'])); ?>" />
+                                    <hr/>
+                                    <h4>One Character Message</h4>
+                                    <small>This error shows if the user tries to have a first name as only one character</small>
+                                    <input required style="width: 100%;" type="text" name="ee-error-one-char" id="ee-error-one-char" value="<?php echo htmlspecialchars($error['one-char']); ?>" />
+                                    <hr/>
+                                    <h4>Two Character Message</h4>
+                                    <small>This error shows if the user only has 2 characters as a first name that are both vowels or both the same letter</small>
+                                    <input required style="width: 100%;" type="text" name="ee-error-two-char" id="ee-error-two-char" value="<?php echo htmlspecialchars($error['two-char']); ?>" />
+                                    <hr/>
+                                    <h4>Profanity Error Message</h4>
+                                    <small>This error shows if the user adds profanity as a name</small>
+                                    <input required style="width: 100%;" type="text" name="ee-error-profanity" id="ee-error-profanity" value="<?php echo htmlspecialchars($error['profanity']); ?>" />
+                                    <hr/>
+                                    <h4>Personal Email Address Message</h4>
+                                    <small>This error shows if the user tries to use a personal email address (IE: @gmail.com)</small>
+                                    <input required style="width: 100%;" type="text" name="ee-error-personal" id="ee-error-personal" value="<?php echo htmlspecialchars($error['personal']); ?>" />
+                                    <hr/>
+                                    <h4>Invalid Email Address Message</h4>
+                                    <small>This error shows if the email address provided is determined to be an invalid email address.</small>
+                                    <input required style="width: 100%;" type="text" name="ee-error-invalid" id="ee-error-invalid" value="<?php echo htmlspecialchars($error['invalid']); ?>" />
+                                    <hr/>
+                                    <h4>Server Cannot be Reached Message</h4>
+                                    <small>This error shows if the email address server cannot be reached.</small>
+                                    <input required style="width: 100%;" type="text" name="ee-error-server" id="ee-error-server" value="<?php echo htmlspecialchars($error['server']); ?>" />
+                                    <hr/>
+                                </div>
+                                </div>
+                            </div>
+                        <?php
+                        break;
+                    case 'ee-updater':
+                        ?>
+                        <h2>Each+Every Updater</h2>
+                            <div style="display: flex; gap: 20px;">
+                                <div style="width: 100%">
+                                <h3>Error Messages</h3>
+                                <div style="display: flex; flex-direction:column; gap: 10px">
+                                    <h4>Not an Email Message</h4>
                                     <input required style="width: 100%;" type="text" name="ee-error-not-email" id="ee-error-not-email" value="<?php echo $error['not-email']; ?>" />
                                     <h4>Disposable Email Message</h4>
                                     <input required style="width: 100%;" type="text" name="ee-error-disposable" id="ee-error-disposable" value="<?php echo $error['disposable']; ?>" />
@@ -232,6 +289,7 @@ if ( ! defined( 'ABSPATH' ) ) {
                                     <input required style="width: 100%;" type="text" name="ee-error-one-char" id="ee-error-one-char" value="<?php echo htmlspecialchars($error['one-char']); ?>" />
                                     <h4>Two Character Message</h4>
                                     <input required style="width: 100%;" type="text" name="ee-error-two-char" id="ee-error-two-char" value="<?php echo htmlspecialchars($error['two-char']); ?>" />
+                                   
                                     
                                 </div>
                                 </div>
@@ -409,8 +467,9 @@ public function form_filter_validation( $result, $value, $form, $field ) {
         }
         // set the form validation to false
         if( wp_remote_retrieve_body( $response ) === 'true' ) {
+            $error = get_option('ee-ff-error');
             $result['is_valid'] = false;
-            $result['message'] = 'Profanity is not allowed.';
+            $result['message'] = $error['profanity'];
         }
     }
     if($field->type == 'email'){
@@ -438,8 +497,9 @@ public function form_filter_validation( $result, $value, $form, $field ) {
                     $this->personal = json_decode($this->personal);
                 }
                 if(in_array($emailArray[1], $this->personal) ){
+                    $error = get_option('ee-ff-error');
                     $result['is_valid'] = false;
-                    $result['message'] = 'Please use a business email.';
+                    $result['message'] = $error['personal'];
                 }
             }
             // If have credits. and nb is to be used AND not already invalid because of personal use NB
@@ -449,25 +509,29 @@ public function form_filter_validation( $result, $value, $form, $field ) {
                 }
                 // Checks to see if this email address is stored as an email that is already "blocked" by NB
                 if(is_array($this->nbResults) && in_array($email, $this->nbResults)){
+                    $error = get_option('ee-ff-error');
                     $result['is_valid'] = false;
-                    $result['message'] = 'This is not a valid email address.';
+                    $result['message'] = $error['invalid'];
                 } 
                 else {
 
                     $verification = \NeverBounce\Single::check($email, true, true);
                     if($verification->result_integer == 1) {
+                        $error = get_option('ee-ff-error');
                         $result['is_valid'] = false;
-                        $result['message'] = 'Email address is not valid';
+                        $result['message'] = $error['invalid'];
                         $this->nb_filteredList($email); 
                     }
                     if($verification->result_integer == 2) {
+                        $error = get_option('ee-ff-error');
                         $result['is_valid'] = false;
-                        $result['message'] = 'Email is a temporary, disposable email address';
+                        $result['message'] = $error['disposable'];
                         $this->nb_filteredList($email); 
                     }
                     if($verification->result_integer == 4) {
+                        $error = get_option('ee-ff-error');
                         $result['is_valid'] = false;
-                        $result['message'] = 'The server cannot be reached';
+                        $result['message'] = $error['server'];
                         $this->nb_filteredList($email); 
                     }
                     // Get verified email
