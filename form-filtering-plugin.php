@@ -604,7 +604,7 @@ public function form_filter_validation( $result, $value, $form, $field ) {
             $form_fields = array_map(function($field) {
                 $val = rgpost( "input_{$field->id}" );
                 return "{$field->label}: '{$val}'";
-            }, $form->fields);
+            }, $form['fields']);
             $form_string = implode(', ', $form_fields);
             
             file_put_contents( $this->files['form_log'], PHP_EOL . date('m/d/Y h:i:s A') . ": {$result['message']} - ($form_string)", FILE_APPEND );
