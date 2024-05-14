@@ -15,9 +15,9 @@ if ( ! defined( 'ABSPATH' ) ) {
     private $personal = ["126.com", "163.com", "21cn.com", "alice.it", "aliyun.com", "aol.com", "aol.it", "arnet.com.ar", "att.net", "bell.net", "bellsouth.net", "bk.ru", "blueyonder.co.uk", "bol.com.br", "bt.com", "btinternet.com", "charter.net", "comcast.net", "cox.net", "daum.net", "earthlink.net", "email.com", "email.it", "facebook.com", "fastmail.fm", "fibertel.com.ar", "foxmail.com", "free.fr", "games.com", "globo.com", "globomail.com", "gmail.com", "gmx.com", "gmx.de", "gmx.fr", "gmx.net", "googlemail.com", "hanmail.net", "hotmail.be", "hotmail.ca", "hotmail.co.uk", "hotmail.com", "hotmail.com.ar", "hotmail.com.br", "hotmail.com.mx", "hotmail.de", "hotmail.es", "hotmail.fr", "hotmail.it", "hush.com", "hushmail.com", "icloud.com", "ig.com.br", "iname.com", "inbox.com", "inbox.ru", "juno.com", "keemail.me", "laposte.net", "lavabit.com", "libero.it", "list.ru", "live.be", "live.co.uk", "live.com", "live.com.ar", "live.com.mx", "live.de", "live.fr", "live.it", "love.com", "mac.com", "mail.com", "mail.ru", "me.com", "msn.com", "nate.com", "naver.com", "neuf.fr", "ntlworld.com", "oi.com.br", "online.de", "orange.fr", "orange.net", "outlook.com", "outlook.com.br", "pobox.com", "poste.it", "prodigy.net.mx", "protonmail.ch", "protonmail.com", "qq.com", "r7.com", "rambler.ru", "rocketmail.com", "rogers.com", "safe-mail.net", "sbcglobal.net", "sfr.fr", "shaw.ca", "sina.cn", "sina.com", "sky.com", "skynet.be", "speedy.com.ar", "sympatico.ca", "t-online.de", "talktalk.co.uk", "telenet.be", "teletu.it", "terra.com.br", "tin.it", "tiscali.co.uk", "tiscali.it", "tuta.io", "tutamail.com", "tutanota.com", "tutanota.de", "tvcablenet.be", "uol.com.br", "verizon.net", "virgilio.it", "virgin.net", "virginmedia.com", "voo.be", "wanadoo.fr", "web.de", "wow.com", "ya.ru", "yahoo.ca", "yahoo.co.id", "yahoo.co.in", "yahoo.co.jp", "yahoo.co.kr", "yahoo.co.uk", "yahoo.com", "yahoo.com.ar", "yahoo.com.br", "yahoo.com.mx", "yahoo.com.ph", "yahoo.com.sg", "yahoo.de", "yahoo.fr", "yahoo.it", "yandex.by", "yandex.com", "yandex.com", "yandex.kz", "yandex.ru", "yandex.ua", "yeah.net", "ygm.com", "ymail.com", "zipmail.com.br", "zoho.com"];
     private $competitors = null;
     private $nbResults = [];
-    private $nb_api = null;
     private $page = 'form-filtering-plugin';
-    private $useNB = false;
+    private $plugin_uploads_dir;
+    private $files = [];
 
     public function __construct() {
         //sets defines
@@ -30,54 +30,10 @@ if ( ! defined( 'ABSPATH' ) ) {
         $updater->set_repository( 'form-filtering-plugin' ); // set repo
         $updater->initialize(); // initialize the updater
 
-        /**
-         * Setup autoloading for NeverBounce
-         */
-        require_once __DIR__ . '/neverbounce/bootstrap.php';
-
-        /**
-         * Checks for neverbounce API. Does try catch and gives back specific erros if we are logging in gravity forms.
-         */
-        if(get_option('ee-neverbounce-api')){
-            $this->nb_api = get_option('ee-neverbounce-api');
-            \NeverBounce\Auth::setApiKey($this->nb_api);
-            // Sets use NB to true. If this isn't set to true we will just skip code below.
-            $this->useNB = true;
-            try {
-                // This just an easy way to check if NB will work and return errors
-                $info = \NeverBounce\Account::info();
-            } catch (\NeverBounce\Errors\AuthException $e) {
-                // The API credentials used are bad, have you reset them recently?
-                GFCommon::log_debug( __METHOD__ . '(): AuthException  '. print_r($e, true));
-                $this->useNB = false;
-            } catch (\NeverBounce\Errors\BadReferrerException $e) {
-                // The script is being used from an unauthorized source, you may need to
-                // adjust your app's settings to allow it to be used from here
-                GFCommon::log_debug( __METHOD__ . '(): BadReferrerException  '. print_r($e, true));
-                $this->useNB = false;
-            } catch (\NeverBounce\Errors\ThrottleException $e) {
-                // Too many requests in a short amount of time, try again shortly or adjust
-                // your rate limit settings for this application in the dashboard
-                GFCommon::log_debug( __METHOD__ . '(): ThrottleException  '. print_r($e, true));
-                $this->useNB = false;
-            } catch (\NeverBounce\Errors\HttpClientException $e) {
-                // An error occurred processing the request, something may be wrong with
-                // the Curl PHP extension or your network
-                GFCommon::log_debug( __METHOD__ . '(): HttpClientException  '. print_r($e, true));
-                $this->useNB = false;
-            } catch (\NeverBounce\Errors\GeneralException $e) {
-                // A non recoverable API error occurred check the message for details
-                GFCommon::log_debug( __METHOD__ . '(): GeneralException  '. print_r($e, true));
-                $this->useNB = false;
-            } catch (Exception $e) {
-                // An error occurred unrelated to the API
-                GFCommon::log_debug( __METHOD__ . '(): unrelated to api  '. print_r($e, true));
-                $this->useNB = false;
-            }
-        }
+        // 
+        $this->set_uploads();
 
         $this->personal = get_option('ee-ff-personal-domains') ? get_option('ee-ff-personal-domains')  :  $this->personal;
-        
         $this->competitors = $this->competitors == null ? get_option('ee-ff-competitors-domains') : false;
         $this->nbResults = $this->nbResults == null  ? get_option('ee-ff-nb-results') : false;
 
@@ -101,7 +57,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 		// register_deactivation_hook( __FILE__, array( &$this, 'deactivation_hook' ) );
         // Cron to get list.
         add_action( 'ee_get_list',  array( &$this, 'get_disposable_emails') );
-
         
         //creates menu page
         add_action( 'admin_menu',  array( &$this, 'ee_form_filter_menu') );
@@ -113,6 +68,7 @@ if ( ! defined( 'ABSPATH' ) ) {
         add_filter( 'gform_field_validation', array( &$this, 'form_filter_validation'), 10, 4 );
         add_filter( 'gform_entry_is_spam', array( &$this, 'filter_gform_entry_is_spam_user_agent'), 11, 3 );
         add_filter( 'gform_entry_is_spam', array( &$this,'filter_gform_competitors'), 12, 3 );
+        add_filter( 'gform_validation', array( &$this, 'form_name_validation'), 10 );
     }
  
   
@@ -144,31 +100,99 @@ if ( ! defined( 'ABSPATH' ) ) {
             wp_schedule_event( time(), 'daily', 'ee_get_list' );
         }
     }
+
+    public function set_uploads() {
+        $upload_dir = wp_upload_dir();
+
+        $this->plugin_uploads_dir = $upload_dir['basedir'] . "/ee-form-filter/";
+
+        // Create directory if it doesn't exist.
+        if ( ! is_dir( $this->plugin_uploads_dir ) ) {
+            wp_mkdir_p( $this->plugin_uploads_dir );
+        }
+
+        // Create log file.
+        if ( ! file_exists( $this->plugin_uploads_dir . 'form-log.log' ) ) {
+            file_put_contents( $this->plugin_uploads_dir . 'form-log.log', '' );
+        }
+        $this->files['form_log'] = $this->plugin_uploads_dir . 'form-log.log';
+        
+        // Create disposable email file.
+        if ( ! file_exists( $this->plugin_uploads_dir . "black-list.json" ) ) {
+            $handle = fopen( $this->plugin_uploads_dir . "black-list.json", 'w');
+            fwrite($handle, '');
+            fclose($handle);
+        }
+        $this->files['disposable_emails'] = $this->plugin_uploads_dir . 'black-list.json';
+    }
    
 
     /**
      * Gets list of disposable emails converts to json and saves as file.
      */
     public function get_disposable_emails() {
-        //your function...
         $url = 'https://raw.githubusercontent.com/disposable/disposable-email-domains/master/domains.txt';
         $requests_response = WpOrg\Requests\Requests::get( $url );
+        
         if(isset($requests_response->body)) {
             $blacklist = explode("\n", $requests_response->body);
             $blacklist = json_encode($blacklist);
-            $upload_dir = wp_upload_dir();
-            wp_mkdir_p( $upload_dir['basedir'] . "/ee-form-filter/" );
-            if ( ! file_exists( $upload_dir['basedir'] . "/ee-form-filter/black-list.json" ) ) {
-                $handle = fopen( $upload_dir['basedir'] . "/ee-form-filter/black-list.json", 'w');
-                fwrite($handle, $blacklist);
-                fclose($handle);
-            }
-            if ( $handle = fopen( $upload_dir['basedir'] . "/ee-form-filter/black-list.json", 'w') ) {
+        
+            if ( $handle = fopen( $this->plugin_uploads_dir . "black-list.json", 'w') ) {
                 fwrite($handle, $blacklist);
                 fclose($handle);
             }
         }
+
         return false;
+    }
+
+    /**
+     * Checks for neverbounce API. Does try catch and gives back specific errors if we are logging in gravity forms.
+     */
+    private function check_rebounce_api() {
+        if ( $api_key = get_option('ee-neverbounce-api')) {
+            
+            // Setup autoloading for NeverBounce
+            require_once __DIR__ . '/neverbounce/bootstrap.php';
+
+            \NeverBounce\Auth::setApiKey( $api_key );
+            
+            try {
+                // This just an easy way to check if NB will work and return errors
+                $info = \NeverBounce\Account::info();
+                return $info->credits_info['paid_credits_remaining'];
+
+            } catch (\NeverBounce\Errors\AuthException $e) {
+                // The API credentials used are bad, have you reset them recently?
+                GFCommon::log_debug( __METHOD__ . '(): AuthException  '. print_r($e, true));
+                return false;
+            } catch (\NeverBounce\Errors\BadReferrerException $e) {
+                // The script is being used from an unauthorized source, you may need to
+                // adjust your app's settings to allow it to be used from here
+                GFCommon::log_debug( __METHOD__ . '(): BadReferrerException  '. print_r($e, true));
+                return false;
+            } catch (\NeverBounce\Errors\ThrottleException $e) {
+                // Too many requests in a short amount of time, try again shortly or adjust
+                // your rate limit settings for this application in the dashboard
+                GFCommon::log_debug( __METHOD__ . '(): ThrottleException  '. print_r($e, true));
+                return false;
+            } catch (\NeverBounce\Errors\HttpClientException $e) {
+                // An error occurred processing the request, something may be wrong with
+                // the Curl PHP extension or your network
+                GFCommon::log_debug( __METHOD__ . '(): HttpClientException  '. print_r($e, true));
+                return false;
+            } catch (\NeverBounce\Errors\GeneralException $e) {
+                // A non recoverable API error occurred check the message for details
+                GFCommon::log_debug( __METHOD__ . '(): GeneralException  '. print_r($e, true));
+                return false;
+            } catch (Exception $e) {
+                // An error occurred unrelated to the API
+                GFCommon::log_debug( __METHOD__ . '(): unrelated to api  '. print_r($e, true));
+                return false;
+            }
+
+        }
     }
 
     /**
@@ -190,11 +214,11 @@ if ( ! defined( 'ABSPATH' ) ) {
         $this->ee_form_filter_save_options();
         $competitors = get_option('ee-ff-competitors-domains') ?: '';
         $nbResults = get_option('ee-ff-nb-results') ?: '';
-        // from https://help.gong.io/hc/en-us/articles/13363982628749-Public-email-domains-exclusion-list
         $personal = get_option('ee-ff-personal-domains') ?: '';
         $error = get_option('ee-ff-error');
         $neverbounce = get_option('ee-neverbounce-api');
         // $neverbouncePriceLimit = get_option('ee-neverbounce-price-limit');
+
         ?>
         <div class="wrap">
             <!-- Print the page title -->
@@ -204,6 +228,7 @@ if ( ! defined( 'ABSPATH' ) ) {
                 <a href="?page=<?php echo $this->page; ?>" class="nav-tab <?php if($tab===null):?>nav-tab-active<?php endif; ?>">Settings</a>
                 <a href="?page=<?php echo $this->page; ?>&tab=error-message" class="nav-tab <?php if($tab==='error-message'):?>nav-tab-active<?php endif; ?>">Error Message</a>
                 <a href="?page=<?php echo $this->page; ?>&tab=neverbounce" class="nav-tab <?php if($tab==='neverbounce'):?>nav-tab-active<?php endif; ?>">NeverBounce</a>
+                <a href="?page=<?php echo $this->page; ?>&tab=form_log" class="nav-tab <?php if($tab==='form_log'):?>nav-tab-active<?php endif; ?>">Form Log</a>
                 <!-- <a href="?page=<?php echo $this->page; ?>&tab=ee-updater" class="nav-tab <?php if($tab==='ee-updater'):?>nav-tab-active<?php endif; ?>">Each+Every Updater</a> -->
             </nav>
 
@@ -216,6 +241,15 @@ if ( ! defined( 'ABSPATH' ) ) {
                         <input style="width: 100%;" type="password" name="ee-neverbounce-api" id="ee-neverbounce-api" value="<?php echo $neverbounce; ?>" />
                         <h3>NeverBounce Blocks</h3>
                         <textarea name="ee-ff-nb-results" id="ee-ff-nb-results" rows="15" columns="50"><?php echo $this->convert_array_to_textarea_data($nbResults); ?></textarea>
+                        <?php
+                        break;
+                    case 'form_log':
+                        $form_log = file_get_contents($this->files['form_log']);
+                        ?>
+                        <h3>Log:</h3>
+                        <pre style="width: 100%; box-shadow: 0 0 0 transparent; border-radius: 4px; border: 1px solid #8c8f94; background-color: #fff; color: #2c3338; font-size: 14px; padding: 2px 6px; line-height: 1.65;">
+                            <?php echo $form_log; ?>
+                        </pre>
                         <?php
                         break;
                     case 'error-message':
@@ -377,9 +411,8 @@ if ( ! defined( 'ABSPATH' ) ) {
      * inputs that start with ee-error- are group together in an array
      */
     private function ee_form_filter_save_options() {
-        
-        $action       = 'ee-filtering-admin-save';
-        $nonce        = 'ee-filtering-admin-save-nonce';
+        $action = 'ee-filtering-admin-save';
+        $nonce  = 'ee-filtering-admin-save-nonce';
         // If the user doesn't have permission to save, then display an error message
         if ( ! $this->ee_user_can_save( $action, $nonce ) ) {
             return;
@@ -444,8 +477,10 @@ public function form_filter_validation( $result, $value, $form, $field ) {
         'text',
         'textarea',
     );
- 
+    $error = get_option('ee-ff-error');
     $text_to_check = array();
+    
+    // Check text and textarea fields for profanity.
     if(in_array($field->type, $field_types_to_check)){
  
         $text_to_check[] = $value;
@@ -462,98 +497,121 @@ public function form_filter_validation( $result, $value, $form, $field ) {
     
         if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {
             // GFCommon::log_debug( __METHOD__ . '(): profanity response => ' . print_r( $response, true ) );
-    
-            return false;
+            return $result;
         }
+
         // set the form validation to false
         if( wp_remote_retrieve_body( $response ) === 'true' ) {
-            $error = get_option('ee-ff-error');
             $result['is_valid'] = false;
             $result['message'] = $error['profanity'];
         }
     }
-    if($field->type == 'email'){
-        $value = is_array($value) ? $value : array($value);
 
-        $credits = false; 
-        // Checks if NB is to be used.
-        if($this->useNB){
-            // checks if there are any credits left
-            $info = \NeverBounce\Account::info();
-            if($info->credits_info['paid_credits_remaining'] > 0) {
-                $credits = true;
-            }
+    // Check email fields for disposable and personal emails (No Bounce integration as well).
+    if($field->type == 'email'){
+
+        // If has confirmation email field, only grab the first email for testing.
+        $email = is_array($value) ? $value[0] : $value;
+        
+        // Exit out if no email or email is blank.
+        if (!isset($email) || $email == '' ) {
+            return $result;
+        };
+        
+        // remove extra spaces
+        $email = trim($email);
+        
+        // Make sure people are only submitting one email.
+        if ( str_contains($email, ',') ) {
+            $emails = explode(",", $email);
+            $email = trim($emails[0]);
         }
         
-        foreach($value as $email) {
-            // Exit out if no email or email is blank.
-            if(!isset($email) || $email == '' ) continue;
-            // remove extra spaces
-            $email = trim($email);
-            $emailArray = explode("@", $email);
-            // Check personal if domain is on personal email list
-            if($this->personal !== null && $this->personal !== false){
-                if($this->isJson($this->personal)) {
-                    $this->personal = json_decode($this->personal);
-                }
-                if(in_array($emailArray[1], $this->personal) ){
-                    $error = get_option('ee-ff-error');
-                    $result['is_valid'] = false;
-                    $result['message'] = $error['personal'];
-                }
+        $emailArray = explode("@", $email); // Grab only the first email domain.
+        $emailDomain = $emailArray[1];
+
+        // Check if the domain is disposable
+        $disposable_domains = file_get_contents($this->files['disposable_emails']);
+        $disposable_domains = $this->isJson($disposable_domains) ? json_decode($disposable_domains) : $disposable_domains;
+        if ( in_array( $emailDomain, $disposable_domains) && $result['is_valid'] !== false ) {
+            $result['is_valid'] = false;
+            $result['message'] = $error['disposable'];
+        }
+
+        // Check personal if domain is on personal email list
+        if ($this->personal !== null && $this->personal !== false && $result['is_valid'] !== false){
+            if ( $this->isJson($this->personal) ) {
+                $this->personal = json_decode($this->personal);
             }
-            // If have credits. and nb is to be used AND not already invalid because of personal use NB
-            if($credits && $this->useNB && $result['is_valid'] !== false){
-                if($this->isJson($this->nbResults)) {
-                    $this->nbResults = json_decode($this->nbResults);
-                }
-                // Checks to see if this email address is stored as an email that is already "blocked" by NB
-                if(is_array($this->nbResults) && in_array($email, $this->nbResults)){
-                    $error = get_option('ee-ff-error');
+            if ( in_array($emailDomain, $this->personal) ) {
+                $result['is_valid'] = false;
+                $result['message'] = $error['personal'];
+            }
+        }
+
+        // Checks for neverbounce API. Does try catch and gives back specific errors if we are logging in gravity forms.
+        $use_nb = $this->check_rebounce_api();
+
+        // If have credits. and nb is to be used AND not already invalid because of personal use NB
+        if ( $use_nb && $result['is_valid'] !== false){
+            
+            if ($this->isJson($this->nbResults)) {
+                $this->nbResults = json_decode($this->nbResults);
+            }
+
+            // Checks to see if this email address is stored as an email that is already "blocked" by NB
+            if(is_array($this->nbResults) && in_array($email, $this->nbResults)){
+                $result['is_valid'] = false;
+                $result['message'] = $error['invalid'];
+            } else {
+                $verification = \NeverBounce\Single::check($email, true, true);
+                if($verification->result_integer == 1) {
                     $result['is_valid'] = false;
                     $result['message'] = $error['invalid'];
-                } 
-                else {
-
-                    $verification = \NeverBounce\Single::check($email, true, true);
-                    if($verification->result_integer == 1) {
-                        $error = get_option('ee-ff-error');
-                        $result['is_valid'] = false;
-                        $result['message'] = $error['invalid'];
-                        $this->nb_filteredList($email); 
-                    }
-                    if($verification->result_integer == 2) {
-                        $error = get_option('ee-ff-error');
-                        $result['is_valid'] = false;
-                        $result['message'] = $error['disposable'];
-                        $this->nb_filteredList($email); 
-                    }
-                    if($verification->result_integer == 4) {
-                        $error = get_option('ee-ff-error');
-                        $result['is_valid'] = false;
-                        $result['message'] = $error['server'];
-                        $this->nb_filteredList($email); 
-                    }
-                    // Get verified email
-                    // GFCommon::log_debug( __METHOD__ . '(): Email Verified: ' . $verification->email );
-                    // GFCommon::log_debug( __METHOD__ . '(): Numeric Code: ' . $verification->result_integer);
-                    // GFCommon::log_debug( __METHOD__ . '(): Text Code: ' . $verification->result);
-                    // GFCommon::log_debug( __METHOD__ . '(): Has DNS: ' . (string) $verification->hasFlag('has_dns'));
-                    // GFCommon::log_debug( __METHOD__ . '(): Is free mail: ' . (string) $verification->hasFlag('free_email_host'));
-                    // GFCommon::log_debug( __METHOD__ . '(): Suggested Correction: ' . $verification->suggested_correction);
-                    // GFCommon::log_debug( __METHOD__ . '(): Is unknown: ' . (string) $verification->is('unknown'));
-                    // GFCommon::log_debug( __METHOD__ . '(): Isn\'t valid or catchall: ' . (string) $verification->not(['valid', 'catchall']));
-                    $credits = ($verification->credits_info->paid_credits_used
-                        + $verification->credits_info->free_credits_used);
-                    GFCommon::log_debug( __METHOD__ . '(): Credits used: ' . $credits);
+                    $this->nb_filteredList($email); 
                 }
+                if($verification->result_integer == 2) {
+                    $result['is_valid'] = false;
+                    $result['message'] = $error['disposable'];
+                    $this->nb_filteredList($email); 
+                }
+                if($verification->result_integer == 4) {
+                    $result['is_valid'] = false;
+                    $result['message'] = $error['server'];
+                    $this->nb_filteredList($email); 
+                }
+
+                // Get verified email
+                // GFCommon::log_debug( __METHOD__ . '(): Email Verified: ' . $verification->email );
+                // GFCommon::log_debug( __METHOD__ . '(): Numeric Code: ' . $verification->result_integer);
+                // GFCommon::log_debug( __METHOD__ . '(): Text Code: ' . $verification->result);
+                // GFCommon::log_debug( __METHOD__ . '(): Has DNS: ' . (string) $verification->hasFlag('has_dns'));
+                // GFCommon::log_debug( __METHOD__ . '(): Is free mail: ' . (string) $verification->hasFlag('free_email_host'));
+                // GFCommon::log_debug( __METHOD__ . '(): Suggested Correction: ' . $verification->suggested_correction);
+                // GFCommon::log_debug( __METHOD__ . '(): Is unknown: ' . (string) $verification->is('unknown'));
+                // GFCommon::log_debug( __METHOD__ . '(): Isn\'t valid or catchall: ' . (string) $verification->not(['valid', 'catchall']));
+                $credits = ($verification->credits_info->paid_credits_used
+                    + $verification->credits_info->free_credits_used);
+                GFCommon::log_debug( __METHOD__ . '(): Credits used: ' . $credits);
             }
-            
         }
         
     }
+
+    // Log the error.
+    if ( $result['is_valid'] === false ) {
+        if($this->files['form_log'] !== null) {
+            $form_fields = array_map(function($field) {
+                $val = rgpost( "input_{$field->id}" );
+                return "{$field->label}: '{$val}'";
+            }, $form->fields);
+            $form_string = implode(', ', $form_fields);
+            
+            file_put_contents( $this->files['form_log'], PHP_EOL . date('m/d/Y h:i:s A') . ": {$result['message']} - ($form_string)", FILE_APPEND );
+        }
+    }
     
-    //Assign modified $form object back to the validation result
+    // Assign modified $form object back to the validation result
     $result['form'] = $form;
     return $result;
       
@@ -563,6 +621,7 @@ public function form_filter_validation( $result, $value, $form, $field ) {
  * Sends to spam by user agent
  */
  public function filter_gform_entry_is_spam_user_agent( $is_spam, $form, $entry ) {
+    
     if ( $is_spam ) {
         return $is_spam;
     }
@@ -572,7 +631,7 @@ public function form_filter_validation( $result, $value, $form, $field ) {
     if ( empty( $user_agent ) ) {
         if ( method_exists( 'GFCommon', 'set_spam_filter' ) ) {
             $reason = 'User-Agent is empty.';
-            // GFCommon::set_spam_filter( rgar( $form, 'id' ), 'User-Agent Check', $reason );
+            GFCommon::set_spam_filter( rgar( $form, 'id' ), 'User-Agent Check', $reason );
             // GFCommon::log_debug( __METHOD__ . '(): ' . $reason );
         }
  
@@ -589,7 +648,7 @@ public function form_filter_validation( $result, $value, $form, $field ) {
         if ( stripos( $user_agent, $token ) !== false ) {
             if ( method_exists( 'GFCommon', 'set_spam_filter' ) ) {
                 $reason = sprintf( 'User-Agent "%s" contains "%s".', $user_agent, $token );
-                // GFCommon::set_spam_filter( rgar( $form, 'id' ), 'User-Agent Check', $reason );
+                GFCommon::set_spam_filter( rgar( $form, 'id' ), 'User-Agent Check', $reason );
                 // GFCommon::log_debug( __METHOD__ . '(): ' . $reason );
             }
  
@@ -628,18 +687,18 @@ public function filter_gform_competitors( $is_spam, $form, $entry ) {
     return $is_spam;
 }
 
-/**
- * Determines if the user has permission to save the information from the submenu
- * page.
- *
- * @since    1.0.0
- * @access   private
- *
- * @param    string    $action   The name of the action specified on the submenu page
- * @param    string    $nonce    The nonce specified on the submenu page
- *
- * @return   bool                True if the user has permission to save; false, otherwise.
- */
+    /**
+     * Determines if the user has permission to save the information from the submenu
+     * page.
+     *
+     * @since    1.0.0
+     * @access   private
+     *
+     * @param    string    $action   The name of the action specified on the submenu page
+     * @param    string    $nonce    The nonce specified on the submenu page
+     *
+     * @return   bool                True if the user has permission to save; false, otherwise.
+     */
     private function ee_user_can_save( $action, $nonce ) {
         $is_nonce_set   = isset( $_POST[ $nonce ] );
         $is_vEE_Form_Filteralid_nonce = false;
@@ -648,5 +707,75 @@ public function filter_gform_competitors( $is_spam, $form, $entry ) {
         }
         return ( $is_nonce_set && $is_valid_nonce );
     }
+
+
+    /**
+     * Form Validation
+     */
+    public function form_name_validation( $validation_result ) {
+        $form = $validation_result['form'];
+        $nameArray = [
+            'first_name' => [
+                'id' => '',
+                'value' => ''
+            ],
+            'last_name' => [
+                'id' => '',
+                'value' => ''
+            ]
+        ];
+        $form_values = [];
+
+        // Check if the form "First Name" and "Last Name" fields are the same.
+        if ( isset($form['fields']) && ! empty($form['fields']) ) {
+            foreach ( $form['fields'] as $i => $field ) {
+                
+                $label = strtolower($field->label);
+
+                if ( strpos($label, 'first') !== false || strpos($label, 'your name') !== false ) {
+                    $nameArray['first_name']['id'] = $i;
+                    $nameArray['first_name']['value'] = rgpost( "input_{$field->id}" );
+                }
+
+                if ( strpos($label, 'last') !== false ) {
+                    $nameArray['last_name']['id'] = $i;
+                    $nameArray['last_name']['value'] = rgpost( "input_{$field->id}" );
+                }
+
+                $val = rgpost( "input_{$field->id}" );
+                if ( ! empty($val) ) {
+                    $form_values[] = "{$field->label}: '{$val}'";
+                }
+            }
+        }
+
+        // Return if no values.
+        if ( $nameArray['first_name']['value'] == '' && $nameArray['last_name']['value'] == '' ) {
+            return $validation_result;
+        }
+
+        // Check if the field is a text field
+        if ( $nameArray['first_name']['value'] == $nameArray['last_name']['value'] ) {
+            // Get the error message
+            $errorMessages = get_option('ee-ff-error');
+            $errorMessage = $errorMessages['first-last'];
+            // Set the form validation to false
+            $validation_result['is_valid'] = false;
+            // Set the field validation to false
+            $form['fields'][$nameArray['first_name']['id']]->failed_validation = true;
+            // Set the field validation message
+            $form['fields'][$nameArray['first_name']['id']]->validation_message = $errorMessage;
+
+            $form_string = implode( ', ', $form_values );
+            if ( ! empty($errorMessage) && ! empty($form_string) ) {
+                file_put_contents( $this->files['form_log'], PHP_EOL . date('m/d/Y h:i:s A') . ": $errorMessage - ($form_string)", FILE_APPEND );
+            }
+        }
+
+        //Assign modified $form object back to the validation result
+        $validation_result['form'] = $form;
+        return $validation_result;
+    }
+
 }
 new EE_Form_Filter();

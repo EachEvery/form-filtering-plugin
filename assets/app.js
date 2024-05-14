@@ -5,18 +5,15 @@
 
     let formType = $('form').find('.gform-body').length > 0 ? 'gforms' : null;
     let errorMessages;
-    let first = '';
-    let last = '';
-    let nameArray = [];
+    let nameObj = { first_name: '', last_name: '', first_name_element};
     let vowels = [
         "a",
         "e",
         "i",
         "o",
         "u"
-    ]
-
-    let blacklist = ["test.com", "10minutemail.com", "10minutemail.net" ];
+    ];
+    let blacklist = [ "test.com", "10minutemail.com", "10minutemail.net" ];
     let errorArray = []
 
     const _init = async function() {
@@ -45,141 +42,138 @@
         }
     }
 
-    const test_email = function() {
+    const handle_email_input_blur = function() {
+        
+        // Clear old error messages.
+        remove_error($(this));
+        
         let email = $(this).val();
-        if(email == '') {
-            remove_error($(this))
+
+        // Add error if email is empty and required.
+        if(email == '' && $(this).attr('aria-required') == 'true'){
+            add_error(errorMessages['not-email'], $(this));
+        }
+
+        // Add error if email doesn't contain an @ character.
+        if(!email.includes('@')){
+            add_error(errorMessages['not-email'], $(this));
+        }
+
+        // Add error if email is a disposable email.
+        // let domain = email.split('@')[1].toLowerCase()
+        // if ( blacklist.includes(domain)) {
+        //     add_error(errorMessages['disposable'], $(this));
+        // }
+    };
+    
+    const handle_name_input_blur = function(){
+        
+        // Clear old error messages.
+        remove_error($(this));
+
+        var value = $(this).val();
+        var label = $("label[for='" + $(this).attr('id') + "']");
+        var first = '';
+        var last = '';
+        var first_bool = label.text().toLowerCase().includes('first');
+        var name_bool = label.text().toLowerCase().includes('your name');
+        var last_bool = label.text().toLowerCase().includes('last');
+
+        if (
+            !first_bool &&
+            !name_bool &&
+            !last_bool
+        ) {
             return;
         }
-        _checkBlacklist(email, $(this))
-        remove_error($(this))
-        if(error){
-            add_error(error, $(this))
-        }
-    }
-    
-    const test_name_fields = function(){
-        var value = $('#'+$(this).attr('id')).val();
-        var label = $("label[for='" + $(this).attr('id') + "']");
-        remove_error($(this))
-        if(!label.text().toLowerCase().includes('first') && !label.text().toLowerCase().includes('your name') && !label.text().toLowerCase().includes('last') ) return;
 
-        if(label.text().toLowerCase().includes('first') || label.text().toLowerCase().includes('your name')){
+        if( first_bool || name_bool ) {
             first = value.toLowerCase();
+            nameObj.first_name = first;
+            nameObj.first_name_element = $(this);
         }
-        if(label.text().toLowerCase().includes('last')){
+
+        if( last_bool ){
             last = value.toLowerCase();
+            nameObj.first_name = last;
         }
 
-        if(first == last) {
-            add_error( errorMessages['first-last'], $(this))
-        }  else {
-            let text = Object.entries(errorArray).filter( function([key, value]){
-                return value == errorMessages['first-last'];
-            });
-            if(text.length != 0){
-                let _this = $(this)
-                nameArray.forEach(function(el){
-                    let id = _this.attr('id').split('_');
-                    console.log(id)
-                    let starts = id[0]+'_'+id[1]
-                    console.log(starts)
-                    console.log(el)
-                    console.log(nameArray)
-                    if(el.startsWith(starts)){
-                        let $set = $(`#${el}`);
-                        remove_error($set)
-                    }
-                })
+        if ( first_bool || name_bool ){
+
+            let chars = first.trim();
+
+            // If the first name is only 1 character long, add an error.
+            if (chars.length == 1){
+                add_error( errorMessages['one-char'], $(this))
             }
-        }
 
-        if(label.text().toLowerCase().includes('first') || label.text().toLowerCase().includes('your name')){
-            nameArray.indexOf($(this).attr('id')) === -1 ? nameArray.push($(this).attr('id')) : '';
-            test_first_chars(first, $(this))
+            // If the first name is only 2 characters long, check if they are the same or both vowels.
+            if (chars.length == 2 && (chars[0].toString() == chars[1].toString() || ( vowels.includes(chars[0]) && vowels.includes(chars[1]) ) )){
+                add_error( errorMessages['two-char'], $(this))
+            }
+
+            // If the first name contains a number, add an error.
             if( containsNumber(first) ){
                 add_error( errorMessages['name-number'], $(this))
             }
+
+            // If the first name is 'first', add an error.
             if( first == 'first' ){ 
                 add_error( errorMessages['first-last'], $(this))
             }
         }
-        if(label.text().toLowerCase().includes('last')){
-            nameArray.indexOf($(this).attr('id')) === -1 ? nameArray.push($(this).attr('id')) : '';
+
+        if( last_bool ){
+
+            // If the last name contains a number, add an error.
             if(containsNumber(last) ) {
                 add_error( errorMessages['name-number'], $(this))
             }
+
+            // If the last name is 'last', add an error.
             if( last == 'last' ){ 
                 add_error( errorMessages['first-last'], $(this))
             } 
         }
-        
-        
-       
-        
-       
+
     }
 
     const containsNumber = function(str) {
         return /[0-9]/.test(str);
-      }
-    const test_first_chars = function(first, el){
-        let chars = first.trim();
-        if(chars.indexOf(' ') >= 0) {
-            return
-        }
-        if(chars.length > 2) {
-            return;
-        }
-        if(chars.length == 1){
-            add_error( errorMessages['one-char'], el)
-        } else if(chars.length == 2){
-            if( chars[0].toString() == chars[1].toString() || ( vowels.includes(chars[0]) && vowels.includes(chars[1]) ) ){ 
-                remove_error(el)
-                add_error( errorMessages['two-char'], el)
-            }
-        }
-    }
-
-    const _checkBlacklist = function(email, el) {
-        if(email == '' && el.attr('aria-required') == 'true'){
-            error = errorMessages['not-email'];
-            return true;
-        }
-        if(!email.includes('@')){
-            error = errorMessages['not-email'];
-            return true;
-        }
-        let domain = email.split('@')[1].toLowerCase()
-        if ( blacklist.includes(domain)) {
-            error = errorMessages['disposable']
-            return true;
-        }
-        error = false
-        return false;
     }
 
     const can_submit_form = function(e) {
+
+        // Add error if first name and last name are the same.
+        if ( nameObj.first_name == nameObj.last_name && nameObj.first_name_element != null ) {
+            add_error( errorMessages['first-last'], nameObj.first_name_element);
+        }
+
         let errors = Object.values(errorArray).filter(el => {
             return el !== false && el !== null
         });
+
         if(errors.length > 0) {
-            window["gf_submitting_"+$(this).data("formid")]=false;
+            e.preventDefault();
+            window["gf_submitting_"+$(this).data("formid")] = false;
             if($("form[data-formid='"+$(this).data("formid")+"']").parent().find('.ee-submit-notice').length <= 0) {
                 $(this).closest('form').after('<div class="ee-submit-notice ee-ff-validation">Please fix the errors notated above to be able to submit the form.</div>')
             }
+
             return false;
         }
+
         $("form[data-formid='"+$(this).data("formid")+"']").parent().find('.ee-submit-notice').remove();
         return true;
     }
 
-    //events
+    // events
     $(document).ready(_init)
-    $('body').on('blur', '[type="email"]', test_email)
-    $('body').on('blur', '[type="text"]', test_name_fields)
-    jQuery(document).on('gform_post_render', function(){
-        $('form').on('submit', can_submit_form)
-    }); 
+    $('body').on('blur', '[type="email"]', handle_email_input_blur);
+    $('body').on('blur', '[type="text"]', handle_name_input_blur);
+    $('form').on('submit', can_submit_form);
+    // jQuery(document).on('gform_post_render', function(){
+    //     $('form').on('submit', can_submit_form)
+    // }); 
 
 })(jQuery);
